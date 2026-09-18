@@ -1,0 +1,11 @@
+{
+  "updated": "2026-09-18",
+  "bins": [
+    {
+      "file": "firmware/st103_260918L.hex",
+      "label": "st103_260918L.hex",
+      "md5": "54be93470d33627a05b94b194595aeb8",
+      "size": 494500
+    }
+  ]
+}

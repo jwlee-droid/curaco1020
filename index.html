@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CURA1020 펌웨어 업데이트 시스템</title>
+<style>
+/* ── [2026-08-27] 회사 톤으로 디자인 변경: 흰 바탕 + 하늘색. (기존 다크 개발자툴 느낌 → 사내 포털과 통일) ── */
+:root{
+  --bg:#eef5fb;          /* 배경 - 아주 옅은 하늘 */
+  --card:#ffffff;        /* 카드 - 흰색 */
+  --line:#d8e6f2;        /* 테두리 */
+  --ink:#1f3864;         /* 본문/제목 - 남색(사내 포털과 동일) */
+  --sub:#6b7c90;         /* 보조 글자 */
+  --sky:#2f9fe0;         /* 주색 - 하늘색 */
+  --sky-d:#1b7fb8;       /* 하늘색 진한 톤(hover) */
+  --sky-l:#e8f4fd;       /* 하늘색 옅은 배경 */
+  --ok:#1e9e56; --fail:#d64545; --amber:#c07a10;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+     font-family:'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;
+     display:flex;justify-content:center;padding:28px 20px}
+.panel{width:100%;max-width:660px;background:var(--card);border:1px solid var(--line);
+       border-radius:16px;padding:0 28px 26px;box-shadow:0 2px 14px rgba(31,56,100,.07)}
+
+/* 상단 바 : 제목(좌) + 로고(우) */
+.top{display:flex;align-items:center;gap:14px;padding:20px 0 16px;border-bottom:3px solid var(--sky);margin-bottom:20px}
+h1{font-size:22px;margin:0;color:var(--ink);font-weight:700;letter-spacing:-.3px}
+.ver{font-size:12px;font-weight:600;color:var(--sky-d);background:var(--sky-l);
+     border:1px solid #bfdff5;border-radius:20px;padding:3px 10px;margin-left:8px;vertical-align:3px}
+.brand{margin-left:auto;display:flex;align-items:center}
+.brand img{height:34px;max-width:170px;object-fit:contain;display:block}
+.brand .wm{font-size:19px;font-weight:800;color:var(--sky-d);letter-spacing:1.5px}
+
+.sub{color:var(--sub);font-size:15px;margin:0 0 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.prod{background:var(--sky-l);border:1.5px solid var(--sky);border-radius:10px;padding:10px 14px;
+  margin:0 0 14px;font-size:15px;color:var(--ink)}
+.prod b{font-size:17px;color:var(--sky-d)}
+.warn{display:none;background:#fdecec;border:1px solid #f3c2c2;border-radius:10px;
+      padding:12px 14px;font-size:14px;color:#b03434;margin-bottom:16px;line-height:1.6}
+.warn.show{display:block}
+
+.row{display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.field{flex:1;min-width:200px;display:flex;flex-direction:column;gap:7px}
+label{font-size:14px;color:var(--sub);font-weight:600}
+select{background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:10px;
+       padding:13px 12px;font-size:17px;font-family:inherit}
+select:focus{outline:none;border-color:var(--sky)}
+
+button{font-family:inherit;font-weight:700;border:0;border-radius:10px;cursor:pointer;transition:.15s}
+.sel{background:#fff;color:var(--ink);border:1.5px solid var(--line);padding:15px 22px;font-size:17px}
+.sel:hover{border-color:var(--sky);color:var(--sky-d)}
+.sel.on{background:#fff6e8;color:#a86a0c;border-color:#f0c98a}
+.sel:disabled{opacity:.45;cursor:default}
+.go{background:var(--sky);color:#fff;padding:16px 34px;font-size:18px;box-shadow:0 2px 8px rgba(47,159,224,.3)}
+.go:hover:not(:disabled){background:var(--sky-d)}
+.go:disabled{opacity:.4;cursor:default;box-shadow:none}
+.go.stop{background:var(--fail);box-shadow:0 2px 8px rgba(214,69,69,.3)}
+
+.status{font-size:17px;font-weight:700;margin-left:10px}
+.status.ok{color:var(--ok)}.status.fail{color:var(--fail)}.status.busy{color:var(--sky-d)}
+.pinfo{font-size:14px;color:var(--sub);margin-top:6px}.pinfo b{color:var(--ink)}
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}
+
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.25}}
+.tx{display:none;align-items:center;gap:10px;margin-top:18px;padding:13px 16px;
+    background:var(--sky-l);border:1.5px solid #bfdff5;border-radius:10px;
+    font-size:16px;font-weight:700;color:var(--sky-d)}
+.tx.show{display:flex}
+.tx .b{width:11px;height:11px;border-radius:50%;background:var(--sky);animation:pl .7s infinite;flex:none}
+
+.pbw{margin-top:18px;display:none}.pbw.show{display:block}
+.ph{font-size:15px;color:var(--ink);font-weight:600;margin-bottom:8px}
+.track{height:18px;background:#e9eff5;border-radius:99px;overflow:hidden}
+.fill{height:100%;width:0;background:var(--sky);border-radius:99px;transition:width .3s}
+.fill.ok{background:var(--ok)}.fill.fail{background:var(--fail)}
+
+pre{margin:16px 0 0;background:#f7fafd;border:1px solid var(--line);border-radius:10px;padding:12px;
+    font-family:Consolas,monospace;font-size:12.5px;color:#4a5a6e;height:130px;overflow:auto;white-space:pre-wrap}
+
+</style></head><body>
+<!-- ★비밀번호 게이트 (비번·ON/OFF는 config.js 에서 관리) -->
+<div id="gate" style="position:fixed;inset:0;z-index:9999;background:#f4f8fb;display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;border:1.5px solid #cfe0ee;border-radius:14px;padding:28px 26px;max-width:340px;width:86%;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center">
+    <div style="font-size:18px;font-weight:700;color:#1a3b57;margin-bottom:4px">CURA 펌웨어 업데이트</div>
+    <div id="gmsg" style="font-size:13px;color:#5b7189;margin-bottom:16px">비밀번호를 입력하세요</div>
+    <input id="gpw" type="password" autocomplete="off" placeholder="비밀번호"
+      style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #cfe0ee;border-radius:10px;font-size:15px;margin-bottom:10px">
+    <button id="gbtn" type="button"
+      style="width:100%;padding:11px;border:0;border-radius:10px;background:#2f8fd6;color:#fff;font-size:15px;font-weight:600;cursor:pointer">확인</button>
+    <div id="gerr" style="font-size:12.5px;color:#c0392b;margin-top:10px;min-height:16px"></div>
+  </div>
+</div>
+<div class="panel">
+<div class="top">
+  <h1>CURA1020 펌웨어 업데이트 시스템<span class="ver">v1.0.3</span></h1>
+  <div class="brand">
+    <!-- 회사 로고: C:\docshare\portal\logo.png 에 파일을 두면 자동으로 표시됨.
+         파일이 없으면 글자 로고로 대체된다. -->
+    <img src="/logo.png" alt="회사 로고"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+    <span class="wm" style="display:none">CURACO</span>
+  </div>
+</div>
+<p class="sub">제품에 최신 펌웨어를 설치합니다.</p>
+<div class="warn" id="warn"></div>
+
+<!-- [2026-09-14] 양산 마지막 배포 버전 명시. 바꿀 때는 아래 JS의 PROD_LAST 한 곳만 수정. -->
+<div class="prod" id="prod"></div>
+<div class="row">
+  <div class="field"><label>펌웨어 선택</label><select id="fw"></select></div>
+</div>
+<div class="actions">
+  <button class="sel" id="selPort">① 포트 선택</button>
+  <button class="go" id="go" disabled>② 시작</button>
+  <span class="status" id="st"></span>
+</div>
+<div class="pinfo" id="md5" style="margin-top:4px"></div>
+<div class="pinfo" id="pinfo"></div>
+
+<div class="tx" id="tx"><span class="b"></span><span id="txt">C 송신중…</span></div>
+<div class="pbw" id="pbw"><div class="ph" id="ph">준비</div><div class="track"><div class="fill" id="fill"></div></div></div>
+<pre id="log"></pre>
+
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const CRLF='\n';
+const fwSel=$('fw'), selBtn=$('selPort'), goBtn=$('go'), st=$('st'), pinfo=$('pinfo');
+const tx=$('tx'), txt=$('txt'), pbw=$('pbw'), fill=$('fill'), ph=$('ph'), logEl=$('log');
+function log(s){ logEl.textContent+=s+'\n'; logEl.scrollTop=logEl.scrollHeight; }
+function setPhase(s){ ph.textContent=s; }
+function pbar(p){ fill.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%'; }
+function txShow(b){ tx.classList.toggle('show',b); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function hexs(a){ return Array.from(a||[]).map(b=>b.toString(16).padStart(2,'0')).join(' '); }
+function hasSeq(a,s){ for(let i=0;i+s.length<=a.length;i++){let m=1;for(let j=0;j<s.length;j++)if(a[i+j]!==s[j]){m=0;break;}if(m)return true;}return false; }
+
+// ── 브라우저 지원 체크 ──
+if(!('serial' in navigator)){
+  const w=$('warn'); w.classList.add('show');
+  w.innerHTML='이 브라우저는 <b>Web Serial</b>을 지원하지 않거나 보안 컨텍스트가 아닙니다.<br>→ <b>Chrome/Edge</b>로, 반드시 <b>https://</b> 주소(예: https://192.168.0.24:8443/webflash.html)로 여세요.';
+  selBtn.disabled=true;
+}
+
+// ── 프로토콜 함수 (prod_upload.py 포팅) ──
+function crc16(data){ let c=0xFFFF; for(const b of data){ c^=(b<<8); for(let i=0;i<8;i++) c=(c&0x8000)?(((c<<1)^0x1021)&0xFFFF):((c<<1)&0xFFFF);} return c&0xFFFF; }
+function parseIHex(text){
+  const mem=new Map(); let ext=0; let __ln=0;
+  for(let line of text.split(/\r?\n/)){
+    __ln++; line=line.trim(); if(!line||line[0]!==':')continue;
+    /* [2026-08-27 보완] 16진수가 아닌 문자 차단.
+       parseInt('zz',16)은 NaN이고 (누산기+NaN)&0xFF 는 0이 되어,
+       예전 코드는 체크섬 누산기가 '실패'가 아니라 '0으로 리셋'되어 검증을 통과할 수 있었다.
+       통과하면 NaN이 Uint8Array에 0x00으로 조용히 기록돼 손상된 펌웨어가 그대로 나간다. */
+    const raw=[];
+    for(let i=1;i+1<line.length;i+=2){
+      const v=parseInt(line.substr(i,2),16);
+      if(!Number.isInteger(v)) throw new Error('hex 형식 오류 ('+__ln+'행) — 16진수가 아닌 문자가 있습니다. 펌웨어 파일이 손상됐습니다.');
+      raw.push(v);
+    }
+    /* 레코드 길이 정합: [길이1 주소2 타입1 데이터N 체크섬1] = N+5.
+       줄이 중간에서 잘리면 체크섬만으로는 걸러지지 않으므로 길이도 함께 본다. */
+    if(raw.length<5 || raw.length!==raw[0]+5)
+      throw new Error('hex 레코드 길이 오류 ('+__ln+'행) — 줄이 잘렸습니다. 다시 받아 주세요.');
+    /* [2026-08-27 #3] Intel HEX 레코드 체크섬 검증 — 전체 바이트 합의 하위 8비트가 0이어야 정상.
+       예전엔 체크섬을 버려서 다운로드가 깨진 hex도 그대로 플래시했다.
+       페이지 CRC16은 'PC→보드' 전송구간만 보호할 뿐 파일 자체의 손상은 못 잡는다. */
+    let __ck=0; for(const b of raw) __ck=(__ck+b)&0xFF;
+    if(__ck!==0) throw new Error('hex 체크섬 오류 ('+__ln+'행) — 펌웨어 파일이 손상됐습니다. 다시 받아 주세요.');
+    const n=raw[0], off=(raw[1]<<8)|raw[2], rt=raw[3], pay=raw.slice(4,4+n);
+    if(rt===0x00){ for(let i=0;i<pay.length;i++) mem.set((ext+off+i)>>>0, pay[i]); }
+    else if(rt===0x01) break;
+    else if(rt===0x04) ext=(((pay[0]<<8)|pay[1])<<16)>>>0;
+    else if(rt===0x02) ext=(((pay[0]<<8)|pay[1])<<4)>>>0;
+  }
+  return mem;
+}
+function buildImage(mem){
+  const APP=0x08010000, PAGE=1024, MAXSZ=448*1024;   // F103VET 앱영역 448KB (앞 64KB=부트로더)
+  /* [2026-08-27 #2] 앱 시작주소 검증.
+     부트로더는 주소를 받지 않고 '항상 0x08010000부터' 쓴다(페이지 수만 전달).
+     시작주소가 다른 hex를 넣으면 통째로 어긋난 위치에 기록돼 벽돌이 된다.
+     예전 코드는 앱영역에 데이터가 없으면 전체 주소로 폴백해서 부트로더 포함본이나
+     다른 기종용 hex도 조용히 통과시켰다 → 폴백 제거하고 명시적으로 막는다. */
+  const keys=[...mem.keys()].filter(a=>a>=APP);
+  if(!keys.length){
+    let lo0=Infinity; for(const a of mem.keys()) if(a<lo0) lo0=a;
+    throw new Error('앱 영역(0x08010000 이상)에 데이터가 없습니다 — 최저주소 0x'+(lo0===Infinity?0:lo0).toString(16).toUpperCase()+'\n양산 앱 hex가 아닙니다(부트로더 포함본이거나 다른 기종용).');
+  }
+  let lo=Infinity,hi=-Infinity; for(const a of keys){ if(a<lo)lo=a; if(a>hi)hi=a; }
+  if(lo!==APP) throw new Error('앱 시작주소가 0x'+lo.toString(16).toUpperCase()+' 입니다 — 0x08010000 이어야 합니다.'+'\n양산 앱 hex가 맞는지 확인하세요.');
+  let size=hi-lo+1; size=Math.ceil(size/PAGE)*PAGE;
+  if(size>MAXSZ) throw new Error('이미지 크기 '+size+'B 가 앱 영역 '+(MAXSZ/1024)+'KB를 초과합니다.');
+  const img=new Uint8Array(size).fill(0xFF);
+  for(const [a,b] of mem){ if(a>=lo && a<lo+size) img[a-lo]=b; }
+  return {img, base:lo};
+}
+function swapPairs(pg){ const o=new Uint8Array(pg.length); for(let k=0;k<pg.length;k+=2){ o[k]=pg[k+1]; o[k+1]=pg[k]; } return o; }
+
+// ── 시리얼 수신 펌프 ──
+let rx=[], reader=null, writer=null, readerActive=false;
+async function pump(){ readerActive=true; try{ while(readerActive){ const {value,done}=await reader.read(); if(done)break; if(value) for(const b of value) rx.push(b); } }catch(e){} }
+async function readByte(t){ const end=performance.now()+t; while(performance.now()<end){ if(rx.length) return rx.shift(); await sleep(2);} return null; }
+async function readN(n,t){ const end=performance.now()+t, o=[]; while(o.length<n && performance.now()<end){ if(rx.length) o.push(rx.shift()); else await sleep(2);} return o; }
+async function wr(a){ await writer.write(a instanceof Uint8Array?a:new Uint8Array(a)); }
+
+// ── UI ──
+let chosenPort=null, portName='', busy=false, abort=false, erased=false;
+/* [2026-08-27 #6] 전송 중 탭을 닫으면 보드가 반쯤 지워진 채로 남는다 → 이탈 경고 */
+window.addEventListener('beforeunload', e=>{ if(busy){ e.preventDefault(); e.returnValue=''; } });
+async function loadFw(){ try{ const j=await(await fetch('manifest.json')).json(); const b=j.bins||[]; fwMd5={}; b.forEach(x=>{ fwMd5[x.file]=x.md5||''; });
+  fwSel.innerHTML=b.length?b.map(x=>'<option value="'+x.file+'">'+(x.label||x.file)+((x.label||x.file)===PROD_LAST?'  ← 양산 배포본':'')+'</option>').join(''):'<option value="">(펌웨어 없음)</option>'; showMd5(); }catch(e){ fwSel.innerHTML='<option value="">(목록 실패)</option>'; } updGo(); }
+let fwMd5={};
+/* [2026-09-14] 양산 마지막 배포 버전(사장 확정). 화면 띠 + 목록 표식에 같이 쓴다. */
+const PROD_LAST='st103_260918L.hex';
+$('prod').innerHTML='🏭 양산 마지막 배포 버전 : <b>'+PROD_LAST+'</b>';
+/* [2026-08-27 #11] 선택한 펌웨어의 md5를 화면에 표시 — md5sum 결과와 그대로 대조할 수 있다.
+   (구버전 베이스로 만든 hex가 잘못 전달되는 사고를 화면에서 바로 잡기 위함) */
+function showMd5(){ const m=fwMd5[fwSel.value]||'';
+  /* 화면엔 앞 8자리만(글자 줄이기). 전체 md5는 로그와 서버 기록에 남는다. */
+  document.getElementById('md5').innerHTML = m ? ('파일 확인값 <b>'+m.slice(0,8)+'</b>') : ''; }
+function updGo(){ goBtn.disabled=!(fwSel.value && chosenPort); }
+/* [2026-08-27] 버튼 수를 줄이기 위해 포트 버튼 하나가 선택/해제를 겸한다(고령 사용자 대응).
+   포트가 잡혀 있으면 '① 포트 해제', 없으면 '① 포트 선택'. */
+function setPortBtn(){
+  selBtn.textContent = chosenPort ? '① 포트 해제' : '① 포트 선택';
+  selBtn.classList.toggle('on', !!chosenPort);
+}
+fwSel.onchange=()=>{ showMd5(); updGo(); };
+selBtn.onclick=async()=>{
+  if(busy) return;
+  if(chosenPort){                      /* 이미 잡혀 있으면 해제 */
+    await cleanup();
+    chosenPort=null; portName='';
+    pinfo.innerHTML='';
+    st.className='status'; st.textContent='';
+    log('포트를 해제했습니다.');
+    setPortBtn(); updGo(); return;
+  }
+  try{ chosenPort=await navigator.serial.requestPort(); const i=chosenPort.getInfo?chosenPort.getInfo():{};
+    portName=i&&i.usbVendorId!=null?('USB '+i.usbVendorId.toString(16).padStart(4,'0')+':'+(i.usbProductId||0).toString(16).padStart(4,'0')):'선택됨';
+    pinfo.innerHTML='';   /* [2026-08-27] USB 식별번호(0403:6015)는 사용자에게 의미가 없어 표시하지 않음.
+                             연결 여부는 버튼이 '① 포트 해제'로 바뀌는 것으로 알 수 있다.
+                             portName 값 자체는 플래시 로그 기록용으로 계속 사용한다. */
+    setPortBtn(); updGo();
+  }catch(e){ /* 사용자가 취소 */ }
+};
+async function cleanup(){
+  readerActive=false;
+  try{ if(reader){ await reader.cancel(); reader.releaseLock(); } }catch(e){}
+  try{ if(writer){ writer.releaseLock(); } }catch(e){}
+  try{ if(chosenPort) await chosenPort.close(); }catch(e){}
+  reader=writer=null;
+}
+
+goBtn.onclick=async()=>{
+  /* [2026-08-27] 시작 버튼이 진행 중에는 '중지'로 바뀐다.
+     단, 소거가 끝난 뒤 중지하면 보드에 펌웨어가 반만 들어가 부팅하지 못하므로 그때는 한 번 더 확인받는다. */
+  if(busy){
+    if(erased && !confirm('전송이 이미 시작됐습니다.'+CRLF+CRLF
+        +'지금 중지하면 보드에 펌웨어가 반만 들어가'+CRLF+'제품이 켜지지 않습니다.'+CRLF+CRLF
+        +'그래도 중지할까요?')) return;
+    abort=true; goBtn.disabled=true; goBtn.textContent='중지하는 중…'; setPhase('중지 요청됨…');
+    return;
+  }
+  const fw=fwSel.value; if(!fw||!chosenPort) return;
+  /* [2026-08-27 #5] 한 번 누르면 즉시 소거가 시작되므로 파일명을 보여주고 확인받는다(버전 오선택 방지) */
+  if(!confirm('아래 펌웨어로 플래시합니다.\n\n    '+fw+'\n\n보드의 앱 영역이 소거됩니다. 계속할까요?')) return;
+  busy=true; abort=false; erased=false;
+  goBtn.textContent='■ 중지'; goBtn.classList.add('stop');
+  selBtn.disabled=true; st.className='status busy'; st.textContent='진행 중…';
+  logEl.textContent=''; pbw.classList.add('show'); fill.className='fill'; pbar(3); setPhase('준비');
+  let result='실패', failMsg='', noAckWarn=false;
+  try{
+    log('펌웨어 다운로드: '+fw+(fwMd5[fw]?('  md5='+fwMd5[fw]):''));
+    const hexText=await (await fetch(encodeURI(fw))).text();
+    const mem=parseIHex(hexText); if(!mem.size) throw new Error('hex 파싱 실패/빈 파일');
+    const {img,base}=buildImage(mem); const pages=img.length/1024;
+    log('base=0x'+base.toString(16).toUpperCase()+' size='+img.length+'B pages='+pages);
+
+    rx=[];
+    /* [2026-08-27 #4] 포트 열기 실패 원인 안내 + 자동 해제.
+       예전엔 원문 예외('An unknown system error' 등)만 남아 실패분석.csv에 '미분류'로 쌓였다.
+       보드 전원을 끄면 어댑터 USB가 사라져 포트 객체가 죽으므로, 실패 시 선택을 비워 재선택을 유도한다. */
+    try{ await chosenPort.open({baudRate:115200}); }
+    catch(eo){
+      const m=String(eo&&(eo.message||eo));
+      chosenPort=null; portName=''; setPortBtn();
+      pinfo.innerHTML='포트를 열지 못했습니다. <b>[① 포트 선택]</b>으로 다시 고르세요.';
+      if(/already open|in use|access|Failed to open/i.test(m))
+        throw new Error('포트를 열 수 없습니다 — 다른 곳에서 이 포트를 쓰고 있습니다.\n ① 이미지 비교 탭이 열려 있으면 [연결 해제] 누르거나 탭 닫기\n ② 시리얼 터미널 등 다른 프로그램 종료\n ③ 보드 전원을 껐다 켰다면 COM 번호가 바뀌었을 수 있음 → 포트 다시 선택\n원본: '+m);
+      throw new Error('포트를 열 수 없습니다 — 보드 전원과 케이블을 확인하고 포트를 다시 선택하세요.\n(어댑터가 보드 전원으로 동작하면 전원 토글 시 COM 번호가 바뀝니다.)\n원본: '+m);
+    }
+    try{ await chosenPort.setSignals({dataTerminalReady:false, requestToSend:false}); }catch(e){}
+    writer=chosenPort.writable.getWriter(); reader=chosenPort.readable.getReader(); pump();
+
+    /* [2026-08-12] 자동리셋(RTS/DTR 펄스) 제거: 이 보드는 RTS/DTR=True가 리셋이라 전송 중 오동작 위험,
+       Web Serial은 보드 옆에서 직접 전원 OFF→ON 하므로 불필요. DTR/RTS는 위에서 False 고정 유지. */
+
+    // 핸드셰이크: 'C' 연속 전송하며 103/E6A5 감시
+    setPhase('접속 대기'); pbar(4); txShow(true);
+    const deadline=performance.now()+90000; let got=false, lastC=0, lastS=0, win=[];
+    while(performance.now()<deadline && !got){
+      if(abort) throw new Error('사용자가 중지했습니다. (아직 보드에 쓰지 않았습니다)');
+      const now=performance.now();
+      if(now-lastS>700){ txt.textContent='C 송신중… 보드 전원 OFF→ON ('+Math.max(0,Math.round((deadline-now)/1000))+'s)'; lastS=now; }
+      if(now-lastC>12){ await wr([0x43]); lastC=now; }
+      while(rx.length) win.push(rx.shift()); if(win.length>512) win=win.slice(-256);   /* [2026-08-27 #7] -64는 한 번에 들어온 버스트 앞쪽의 103/E6A5 마커를 검사 전에 잘라버릴 수 있음 */
+      if(hasSeq(win,[0x31,0x30,0x33])||hasSeq(win,[0xE6,0xA5])){ got=true; break; }
+      await sleep(4);
+    }
+    txShow(false);
+    if(!got) throw new Error('부트로더 응답(103/E6A5) 미수신 (전원 타이밍/케이블 확인)');
+    if(!hasSeq(win,[0x31,0x30,0x33])){ const t2=performance.now()+2000;
+      while(performance.now()<t2 && !hasSeq(win,[0x31,0x30,0x33])){ await wr([0x43]); const b=await readByte(50); if(b!=null) win.push(b); }
+      if(!hasSeq(win,[0x31,0x30,0x33])) throw new Error('103 미수신'); }
+    log('보드 접속: STM32F103 (103 수신)'); setPhase('접속'); pbar(10);
+    await sleep(30); rx=[];
+    await wr([0xF1]);                                  // PROG
+    const chk=await readN(3,2000);
+    if(chk.length<1 || chk[0]!==0xAE) throw new Error('CHECKBYTE(AE) 미수신 (recv='+hexs(chk)+')');
+    log('핸드셰이크 OK');
+
+    setPhase('소거'); pbar(14);                        // INFO(소거)
+    await wr([0x01,0xF2,(pages>>8)&0xFF,pages&0xFF,0x02]);
+    const eack=await readByte(10000);
+    if(eack!==0x06) throw new Error('소거 ACK(06) 미수신 (recv='+eack+')');
+    erased=true;   /* 이 시점부터 중지하면 보드가 반쯤 지워진 상태로 남는다 */
+    log('소거 완료 ('+pages+' 페이지)'); pbar(20);
+
+    /* [2026-08-12] 전송 속도 개선(A안): chunk 16→64B. 브라우저 setTimeout은 중첩 시 최소 4ms로
+       클램프돼 gap 2ms가 실제 4ms+가 된다 → 페이지당 sleep 65회가 병목(전체의 ~77%가 지연).
+       청크를 키워 sleep 횟수를 65→17회로 줄임. 바이트 사이 간격(gap)은 유지해 수신 유실은 방지. */
+    setPhase('전송'); const settle=45, gap=2, chunk=64;
+    for(let p=0;p<pages;p++){
+      if(abort) throw new Error('사용자가 중지했습니다. 페이지 '+p+'/'+pages+'에서 멈춤 — 보드에 펌웨어가 일부만 들어갔습니다. 처음부터 다시 진행하세요.');
+      const page=img.subarray(p*1024,(p+1)*1024);
+      const wire=swapPairs(page); const crc=crc16(wire);
+      const frame=new Uint8Array(3+wire.length+2);
+      frame[0]=0x02; frame[1]=0x01; frame[2]=0xFE; frame.set(wire,3);
+      frame[3+wire.length]=(crc>>8)&0xFF; frame[4+wire.length]=crc&0xFF;
+      const last=(p===pages-1); let ok=false, ack=null, noAck=false;
+      for(let att=0;att<3;att++){
+        rx.length=0;   /* [2026-08-27 #8] 송신 직전 수신버퍼 비움 — 잡음 1바이트가 다음 ACK 자리를 차지해 연쇄 오판하는 것 방지 */
+        for(let i=0;i<frame.length;i+=chunk){ await wr(frame.subarray(i,i+chunk)); if(gap>0) await sleep(gap); }
+        ack=await readByte(last?2000:3000);
+        if(ack===0x06){ ok=true; break; }
+        if(ack===0x15){ if(settle) await sleep(settle); continue; }   /* CRC NAK → 재전송 */
+        /* [2026-08-27 #1] 예전에는 마지막 페이지면 응답이 무엇이든(무응답·쓰레기) 무조건 성공 처리했다.
+           → 실제로 안 써져도 화면은 '완료', 로그도 '[EXIT 0] 성공'이 찍혀 원인 추적이 불가능했다.
+           이제 마지막 페이지도 재전송하고, '무응답'만 따로 구분해 성공으로 인정하되 기록을 남긴다
+           (부트로더가 마지막 페이지 직후 곧바로 앱으로 점프해 ACK를 못 주는 경우가 있으므로).
+           쓰레기 응답은 재전송 후에도 안 맞으면 실패로 떨군다. */
+        if(last && ack===null){ noAck=true; break; }
+      }
+      if(noAck){ ok=true; noAckWarn=true;
+        log('⚠ 마지막 페이지 ACK 없음 — 부트로더 즉시 점프로 추정(정상일 수 있음). 기록에 남깁니다.'); }
+      if(!ok){
+        const tail=await readN(96,1500);
+        let d=''; if(hasSeq(tail,[0xE6,0xA5])) d=' → 보드 리셋 감지(E6A5)=전송중 재부팅'; else if(tail.length) d=' → 알수없는 응답'; else d=' → 무응답(먹통)';
+        throw new Error('페이지 '+p+' 3회 재전송 실패 (주소~0x'+(base+p*1024).toString(16).toUpperCase()+', recv='+ack+')'+d);
+      }
+      if(!last && settle) await sleep(settle);
+      const kb=Math.floor((p+1)*1024/1024);
+      pbar(20+(p+1)/pages*75); setPhase('전송 '+Math.round(100*(p+1)/pages)+'%  '+kb+'/'+Math.floor(img.length/1024)+' KB');
+    }
+    setPhase('완료 신호(F8)'); try{ await wr([0xF8]); }catch(e){}
+    pbar(100); fill.className='fill ok'; setPhase('완료 — 앱 점프');
+    log('업로드 성공 — 보드가 앱으로 점프합니다.'); result='성공';
+    st.className='status ok'; st.textContent='✅ 완료';
+  }catch(e){
+    failMsg=e.message||String(e); log('실패: '+failMsg);
+    fill.className='fill fail'; setPhase('실패'); txShow(false);
+    st.className='status fail'; st.textContent='❌ 실패';
+  }finally{
+    await cleanup();
+    busy=false; abort=false; erased=false;
+    goBtn.textContent='② 시작'; goBtn.classList.remove('stop'); goBtn.disabled=false;
+    selBtn.disabled=false; setPortBtn(); updGo();
+  }
+};
+
+
+setPortBtn();
+loadFw();
+</script>
+<script src="config.js"></script>
+<script>
+/* ★비밀번호 게이트 로직 (config.js 의 ENABLED·PASSWORD_SHA256 사용) */
+(function(){
+  var C = window.SITE_CONFIG || { ENABLED:true, PASSWORD_SHA256:"" };
+  var gate=document.getElementById('gate'), msg=document.getElementById('gmsg'),
+      pw=document.getElementById('gpw'), btn=document.getElementById('gbtn'), err=document.getElementById('gerr');
+  function unlock(){ try{ sessionStorage.setItem('cura_ok','1'); }catch(e){} gate.style.display='none'; }
+  if(C.ENABLED===false){ pw.style.display='none'; btn.style.display='none';
+    msg.innerHTML='현재 <b>잠금(중지)</b> 상태입니다.'; return; }
+  try{ if(sessionStorage.getItem('cura_ok')==='1'){ gate.style.display='none'; } }catch(e){}
+  async function sha256(s){ var b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join(''); }
+  async function check(){ err.textContent='';
+    var h=await sha256(pw.value||'');
+    if(h===String(C.PASSWORD_SHA256||'').toLowerCase()){ unlock(); }
+    else { err.textContent='비밀번호가 틀렸습니다.'; pw.value=''; pw.focus(); } }
+  if(btn){ btn.addEventListener('click', check); }
+  if(pw){ pw.addEventListener('keydown', function(e){ if(e.key==='Enter'){ check(); } }); pw.focus(); }
+})();
+</script>
+</body></html>
