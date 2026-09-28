@@ -204,7 +204,10 @@ async function wr(a){ await writer.write(a instanceof Uint8Array?a:new Uint8Arra
 let chosenPort=null, portName='', busy=false, abort=false, erased=false;
 /* [2026-08-27 #6] 전송 중 탭을 닫으면 보드가 반쯤 지워진 채로 남는다 → 이탈 경고 */
 window.addEventListener('beforeunload', e=>{ if(busy){ e.preventDefault(); e.returnValue=''; } });
-async function loadFw(){ try{ const j=await(await fetch('manifest.json')).json(); const b=j.bins||[]; fwMd5={}; b.forEach(x=>{ fwMd5[x.file]=x.md5||''; });
+/* [2026-09-28] {cache:'no-store'} 필수 — GitHub Pages 가 max-age=600 으로 주기 때문에
+   캐시를 끄지 않으면 목록에서 뺀 버전이 최대 10분간 그대로 보인다(실제 발생).
+   더 큰 위험은 같은 파일명으로 수정 hex 를 올렸을 때 옛 hex 가 그대로 구워지는 것. */
+async function loadFw(){ try{ const j=await(await fetch('manifest.json',{cache:'no-store'})).json(); const b=j.bins||[]; fwMd5={}; b.forEach(x=>{ fwMd5[x.file]=x.md5||''; });
   fwSel.innerHTML=b.length?b.map(x=>'<option value="'+x.file+'">'+(x.label||x.file)+'</option>').join(''):'<option value="">(펌웨어 없음)</option>'; showMd5(); }catch(e){ fwSel.innerHTML='<option value="">(목록 실패)</option>'; } updGo(); }
 let fwMd5={};
 /* [2026-09-28] '양산 마지막 배포 버전' 안내 띠 제거(사장 지시) — 관련 CSS·div·PROD_LAST 전부 삭제. */
@@ -267,7 +270,8 @@ goBtn.onclick=async()=>{
   let result='실패', failMsg='', noAckWarn=false;
   try{
     log('펌웨어 다운로드: '+fw+(fwMd5[fw]?('  md5='+fwMd5[fw]):''));
-    const hexText=await (await fetch(encodeURI(fw))).text();
+    /* [2026-09-28] hex 도 no-store — 같은 파일명으로 교체된 hex 를 캐시에서 굽는 사고 방지. */
+    const hexText=await (await fetch(encodeURI(fw),{cache:'no-store'})).text();
     const mem=parseIHex(hexText); if(!mem.size) throw new Error('hex 파싱 실패/빈 파일');
     const {img,base}=buildImage(mem); const pages=img.length/1024;
     log('base=0x'+base.toString(16).toUpperCase()+' size='+img.length+'B pages='+pages);
