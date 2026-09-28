@@ -1,0 +1,4 @@
+# [2026-09-28] hex 는 바이트 그대로 보관·배포한다.
+# core.autocrlf=true 환경에서 CRLF→LF 로 저장돼 GitHub Pages 가 내려주는 파일의
+# md5 가 manifest.json 의 md5(원본 기준)와 달라졌다 — 화면 "파일 확인값" 대조가 무의미해짐.
+*.hex -text
