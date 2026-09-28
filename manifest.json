@@ -2,12 +2,6 @@
   "updated": "2026-09-28",
   "bins": [
     {
-      "file": "firmware/st103_260928L.hex",
-      "label": "st103_260928L.hex",
-      "md5": "b4b2ff0c85c4fa3cb09cf8c4633b55d2",
-      "size": 494566
-    },
-    {
       "file": "firmware/st103_260427L.hex",
       "label": "st103_260427L.hex",
       "md5": "11c5b7f9aa6ea6b1c43e3c12f3bfb56a",

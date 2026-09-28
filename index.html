@@ -32,9 +32,6 @@ h1{font-size:22px;margin:0;color:var(--ink);font-weight:700;letter-spacing:-.3px
 .brand .wm{font-size:19px;font-weight:800;color:var(--sky-d);letter-spacing:1.5px}
 
 .sub{color:var(--sub);font-size:15px;margin:0 0 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.prod{background:var(--sky-l);border:1.5px solid var(--sky);border-radius:10px;padding:10px 14px;
-  margin:0 0 14px;font-size:15px;color:var(--ink)}
-.prod b{font-size:17px;color:var(--sky-d)}
 .warn{display:none;background:#fdecec;border:1px solid #f3c2c2;border-radius:10px;
       padding:12px 14px;font-size:14px;color:#b03434;margin-bottom:16px;line-height:1.6}
 .warn.show{display:block}
@@ -104,8 +101,6 @@ pre{margin:16px 0 0;background:#f7fafd;border:1px solid var(--line);border-radiu
 <p class="sub">제품에 최신 펌웨어를 설치합니다.</p>
 <div class="warn" id="warn"></div>
 
-<!-- [2026-09-14] 양산 마지막 배포 버전 명시. 바꿀 때는 아래 JS의 PROD_LAST 한 곳만 수정. -->
-<div class="prod" id="prod"></div>
 <div class="row">
   <div class="field"><label>펌웨어 선택</label><select id="fw"></select></div>
 </div>
@@ -210,11 +205,9 @@ let chosenPort=null, portName='', busy=false, abort=false, erased=false;
 /* [2026-08-27 #6] 전송 중 탭을 닫으면 보드가 반쯤 지워진 채로 남는다 → 이탈 경고 */
 window.addEventListener('beforeunload', e=>{ if(busy){ e.preventDefault(); e.returnValue=''; } });
 async function loadFw(){ try{ const j=await(await fetch('manifest.json')).json(); const b=j.bins||[]; fwMd5={}; b.forEach(x=>{ fwMd5[x.file]=x.md5||''; });
-  fwSel.innerHTML=b.length?b.map(x=>'<option value="'+x.file+'">'+(x.label||x.file)+((x.label||x.file)===PROD_LAST?'  ← 양산 배포본':'')+'</option>').join(''):'<option value="">(펌웨어 없음)</option>'; showMd5(); }catch(e){ fwSel.innerHTML='<option value="">(목록 실패)</option>'; } updGo(); }
+  fwSel.innerHTML=b.length?b.map(x=>'<option value="'+x.file+'">'+(x.label||x.file)+'</option>').join(''):'<option value="">(펌웨어 없음)</option>'; showMd5(); }catch(e){ fwSel.innerHTML='<option value="">(목록 실패)</option>'; } updGo(); }
 let fwMd5={};
-/* [2026-09-14] 양산 마지막 배포 버전(사장 확정). 화면 띠 + 목록 표식에 같이 쓴다. */
-const PROD_LAST='st103_260918L.hex';
-$('prod').innerHTML='🏭 양산 마지막 배포 버전 : <b>'+PROD_LAST+'</b>';
+/* [2026-09-28] '양산 마지막 배포 버전' 안내 띠 제거(사장 지시) — 관련 CSS·div·PROD_LAST 전부 삭제. */
 /* [2026-08-27 #11] 선택한 펌웨어의 md5를 화면에 표시 — md5sum 결과와 그대로 대조할 수 있다.
    (구버전 베이스로 만든 hex가 잘못 전달되는 사고를 화면에서 바로 잡기 위함) */
 function showMd5(){ const m=fwMd5[fwSel.value]||'';
