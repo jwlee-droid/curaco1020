@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CURA1020 WiFi 연결 테스트</title>
+<style>
+/* v1.0.0 — JSN1000 WiFi 동글 연결 테스트. LTE 연결 테스트(lte-test.html v1.1.1)와 같은 틀 (2026-10-20 사장 지시)
+   검토 = 03_프로젝트\하드웨어 검토\2026-10-20_JSN1000_WiFi연결테스트_웹페이지_가능성검토_v1.0.0.md */
+:root{
+  --bg:#eef5fb; --card:#ffffff; --line:#d8e6f2; --ink:#1f3864; --sub:#6b7c90;
+  --sky:#2f9fe0; --sky-d:#1b7fb8; --sky-l:#e8f4fd; --ok:#1e9e56; --fail:#d64545;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+     font-family:'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;
+     display:flex;justify-content:center;padding:28px 16px}
+.panel{width:100%;max-width:520px;background:var(--card);border:1px solid var(--line);
+       border-radius:16px;padding:0 24px 20px;box-shadow:0 2px 14px rgba(31,56,100,.07)}
+.top{display:flex;align-items:center;padding:18px 0 12px;border-bottom:3px solid var(--sky);margin-bottom:20px}
+h1{font-size:20px;margin:0;font-weight:700}
+.ver{font-size:11px;font-weight:600;color:var(--sky-d);margin-left:8px}
+.sw{margin-left:auto;font-size:13px;font-weight:700;color:var(--sky-d);text-decoration:none;
+    border:1.5px solid var(--sky);border-radius:20px;padding:4px 14px}
+.sw:hover{background:var(--sky-l)}
+.warn{display:none;background:#fdecec;border:1px solid #f3c2c2;border-radius:10px;
+      padding:10px 12px;font-size:13px;color:#b03434;margin-bottom:14px}
+.warn.show{display:block}
+
+button{font-family:inherit;font-weight:700;border:0;border-radius:12px;cursor:pointer;transition:.15s;width:100%}
+button:disabled{opacity:.4;cursor:default;box-shadow:none}
+.big{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.conn{background:#fff;color:var(--ink);border:2px solid var(--line);padding:16px;font-size:17px}
+.conn:hover:not(:disabled){border-color:var(--sky);color:var(--sky-d)}
+.conn.on{border-color:var(--ok);color:var(--ok);background:#f2fbf5}
+.go{background:var(--sky);color:#fff;padding:18px;font-size:19px;box-shadow:0 2px 8px rgba(47,159,224,.3)}
+.go:hover:not(:disabled){background:var(--sky-d)}
+.row2{display:grid;grid-template-columns:3fr 2fr;gap:10px}
+.go2{background:#fff;color:var(--sky-d);border:2px solid var(--sky);padding:16px 8px;font-size:17px}
+.go2:hover:not(:disabled){background:var(--sky-l)}
+.go2.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.go2.ng{background:var(--fail);border-color:var(--fail);color:#fff}
+
+.status{border-radius:12px;padding:14px;font-size:16px;font-weight:700;text-align:center;
+        background:#f6f9fc;color:var(--sub);margin-bottom:16px;min-height:52px}
+.status[hidden]{display:none}
+.status.ok{background:#eefaf2;color:var(--ok)}
+.status.ng{background:#fdf1f1;color:var(--fail)}
+.status.chk{background:#fff6e5;color:#a86a0c;border:1.5px solid #f0c98a}
+.status.run{background:var(--sky-l);color:var(--sky-d)}
+.status small{display:block;font-weight:400;font-size:12.5px;color:var(--ink);margin-top:3px}
+.srv{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:15px;color:var(--sky-d);
+     border:1.5px solid var(--sky);border-radius:12px;padding:12px;margin-bottom:16px}
+.srv:hover{background:var(--sky-l)}
+
+details{border-top:1px solid var(--line)}
+summary{cursor:pointer;padding:11px 2px;font-size:13.5px;color:var(--sub);font-weight:600;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'▸ ';color:var(--sky)}
+details[open] summary::before{content:'▾ '}
+.inner{padding:0 2px 14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f{display:flex;flex-direction:column;gap:4px}
+label{font-size:12px;color:var(--sub);font-weight:600}
+input,select{background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:8px;
+       padding:8px 10px;font-size:14px;font-family:inherit;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--sky)}
+input.bad{border-color:var(--fail)}
+.hint{font-size:12px;color:#8a5a0a;margin-top:10px;line-height:1.5}
+.pkt{font-family:Consolas,monospace;font-size:12px;background:#f6f9fc;border-radius:8px;padding:8px 10px;
+     word-break:break-all;margin-top:10px;color:#2a4a6e}
+.small{background:#fff;color:var(--ink);border:1.5px solid var(--line);padding:9px;font-size:14px;margin-top:10px}
+.small.wr{border-color:var(--sky);color:var(--sky-d)}
+.f.wide{grid-column:1/-1}
+.f.fix[hidden]{display:none}
+.pwrow{display:flex;gap:6px}
+.eye{width:auto;flex:0 0 auto;white-space:nowrap;background:#fff;color:var(--sub);border:1.5px solid var(--line);border-radius:8px;padding:0 12px;font-size:13px}
+
+.steps{list-style:none;margin:0 0 10px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.steps li{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px}
+.steps li b{display:block;font-size:11px;color:var(--sub);font-weight:600}
+.steps li.ok{border-color:#b9e3c9;background:#eefaf2;color:var(--ok)}
+.steps li.ng{border-color:#f3c2c2;background:#fdf1f1;color:var(--fail)}
+.steps li.run{border-color:#bfdff5;background:var(--sky-l);color:var(--sky-d)}
+#log{background:#0f1f33;color:#d6e6f7;font-family:Consolas,monospace;font-size:12px;line-height:1.5;
+     border-radius:8px;padding:8px 10px;height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+#log .tx{color:#7cc4f5}#log .rx{color:#c9f0c9}#log .er{color:#ff9d9d}#log .in{color:#f5d27c}
+@media(max-width:480px){.panel{padding:0 16px 16px}.grid{grid-template-columns:1fr}}
+</style></head>
+<body>
+<!-- ★비밀번호 게이트 (비번·ON/OFF는 config.js 에서 관리 — index.html 과 같음) -->
+<div id="gate" style="position:fixed;inset:0;z-index:9999;background:#f4f8fb;display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;border:1.5px solid #cfe0ee;border-radius:14px;padding:28px 26px;max-width:340px;width:86%;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center">
+    <div style="font-size:18px;font-weight:700;color:#1a3b57;margin-bottom:4px">CURA 연결 테스트</div>
+    <div id="gmsg" style="font-size:13px;color:#5b7189;margin-bottom:16px">비밀번호를 입력하세요</div>
+    <input id="gpw" type="password" autocomplete="off" placeholder="비밀번호"
+      style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #cfe0ee;border-radius:10px;font-size:15px;margin-bottom:10px">
+    <button id="gbtn" type="button"
+      style="width:100%;padding:11px;border:0;border-radius:10px;background:#2f8fd6;color:#fff;font-size:15px;font-weight:600;cursor:pointer">확인</button>
+    <div id="gerr" style="font-size:12.5px;color:#c0392b;margin-top:10px;min-height:16px"></div>
+  </div>
+</div>
+<main class="panel">
+  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.4.0</span>
+    <a class="sw" href="lte-test.html">LTE</a></div>
+  <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
+
+  <div class="big">
+    <button class="conn" id="btnConn">COM 연결</button>
+    <div class="row2">
+      <button class="go" id="btnSend" disabled>테스트 데이터 전송</button>
+      <button class="go2" id="btnWifi" disabled>WiFi 연결 확인</button>
+    </div>
+  </div>
+  <div class="status" id="status" hidden></div>
+  <a class="srv" href="https://crcadm.toksol.com/list_machine.php" target="_blank" rel="noopener">큐라코 서버 ↗</a>
+
+  <!-- 처음에는 접힘 (open 속성 없음) -->
+  <!-- v1.1.0 — WiFi 설정 (기획_WiFi연결테스트_WiFi설정_v1.0.0.md). 명령 = CuracoCom.exe(2022-02-24) 「초기 설정」 순서 -->
+  <details id="wifiBox">
+    <summary>WiFi 설정 (공유기 · 비밀번호 · 서버)</summary>
+    <div class="inner">
+      <div class="grid">
+        <div class="f wide"><label for="ssid">WiFi 이름 (SSID)</label><input id="ssid" placeholder="예: curaco2.4G" autocomplete="off"></div>
+        <div class="f wide"><label for="pw">비밀번호</label>
+          <div class="pwrow"><input id="pw" type="password" autocomplete="new-password" placeholder="COM 연결 시 모듈에서 불러옴"><button type="button" class="eye" id="btnEye">보기</button></div></div>
+        <div class="f"><label for="sec">보안 방식</label>
+          <select id="sec"><option value="2" selected>WPA/WPA2 (2)</option><option value="1">WEP (1)</option><option value="0">없음 (0)</option></select></div>
+        <div class="f"><label for="dhcp">IP 받기</label>
+          <select id="dhcp"><option value="1" selected>자동 (DHCP)</option><option value="0">고정 IP</option></select></div>
+        <div class="f fix"><label for="ip">고정 IP</label><input id="ip" value="192.168.0.240"></div>
+        <div class="f fix"><label for="gw">게이트웨이</label><input id="gw" value="192.168.0.1"></div>
+        <div class="f fix"><label for="sm">서브넷</label><input id="sm" value="255.255.255.0"></div>
+        <div class="f fix"><label for="dns">DNS</label><input id="dns" value="168.126.63.2"></div>
+        <div class="f"><label for="sip">서버 주소</label><input id="sip" value="43.201.88.87"></div>
+        <div class="f"><label for="sport">서버 포트</label><input id="sport" value="8888" inputmode="numeric"></div>
+      </div>
+      <div class="hint">2.4GHz 공유기만 됩니다. 고정 IP는 기기마다 다른 번호를 쓰세요(같은 번호면 서로 끊김).</div>
+      <button class="small" id="btnRead" disabled>모듈 설정 읽기</button>
+      <button class="small wr" id="btnWrite" disabled>모듈에 쓰기</button>
+    </div>
+  </details>
+
+  <details>
+    <summary>설정</summary>
+    <div class="inner">
+      <div class="grid">
+        <div class="f"><label for="sn">시리얼</label><input id="sn" value="TS001" maxlength="5"></div>
+        <div class="f"><label for="baud">통신 속도</label>
+          <select id="baud"><option>9600</option><option>115200</option><option>57600</option><option>38400</option><option>19200</option></select></div>
+        <div class="f"><label for="err">에러코드 E</label><input id="err" value="00" maxlength="2"></div>
+      </div>
+      <div class="pkt" id="pktTxt"></div>
+      <div class="hint">⚠ 서버 = 모듈에 저장된 주소(운영 서버 43.201.88.87:8888). 시험용 시리얼을 쓰세요.<br>
+        ⚠ JSN1000 신호는 <b>5V TTL</b> — 5V 대응 USB-시리얼 어댑터로 연결.</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>통신 기록</summary>
+    <div class="inner">
+      <ul class="steps" id="steps">
+        <li data-k="cmd"><b>명령 모드</b><span>-</span></li>
+        <li data-k="wifi"><b>WiFi 상태</b><span>-</span></li>
+        <li data-k="send"><b>전송</b><span>-</span></li>
+      </ul>
+      <div id="log"></div>
+    </div>
+  </details>
+</main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let port = null, reader = null, writer = null, rxBuf = '', busy = false, readLoopDone = null;
+
+  if(!('serial' in navigator)){ $('noSerial').classList.add('show'); }
+
+  // ── 기록 ──
+  function now(){ const d=new Date(); return d.toTimeString().slice(0,8)+'.'+String(d.getMilliseconds()).padStart(3,'0'); }
+  function log(cls, txt){
+    const el = $('log'), line = document.createElement('div');
+    line.className = cls; line.textContent = now()+'  '+txt;
+    el.appendChild(line); el.scrollTop = el.scrollHeight;
+  }
+
+  // ── 결과 한 줄 — 대기 안내(kind 없음)는 숨김 ──
+  function status(kind, msg, sub){
+    $('status').hidden = !kind;
+    $('status').className = 'status '+(kind||'');
+    $('status').innerHTML = msg+(sub?'<small>'+sub+'</small>':'');
+  }
+
+  // ── 패킷 (양산 명세 v1.2.0 형식 — 정지 상태·기록 없음. 서버는 LTE와 같은 파서) ──
+  function hms(){ return new Date().toTimeString().slice(0,8); }
+  function buildPacket(h){
+    const sn = $('sn').value, e = $('err').value.padStart(2,'0');
+    return '#S#'+sn+'-{E:'+e+',M:1,F:00,U:00,S:I(S),T:000,N:00000000000000,A:0,P:00-,H:'+h+',B:0000,R{}}#E#\r\n';
+  }
+  function validate(){
+    const snOk = /^[A-Za-z0-9]{5}$/.test($('sn').value);
+    const eOk = /^\d{1,2}$/.test($('err').value);
+    $('sn').classList.toggle('bad', !snOk); $('err').classList.toggle('bad', !eOk);
+    $('pktTxt').textContent = buildPacket('hh:mm:ss').replace('\r\n','␍␊');
+    return snOk && eOk;
+  }
+  ['sn','err'].forEach(id => $(id).addEventListener('input', () => { validate(); setButtons(); }));
+
+  // ── 단계 칸 ──
+  function step(k, state, txt){
+    const li = document.querySelector('#steps li[data-k="'+k+'"]');
+    li.className = state || ''; li.querySelector('span').textContent = txt;
+  }
+  function resetSteps(){ ['cmd','wifi','send'].forEach(k => step(k, '', '-')); }
+
+  // ── 시리얼 ──
+  function setButtons(){
+    const c = !!port, ok = validate();
+    $('btnConn').disabled = busy || !('serial' in navigator);
+    $('btnConn').textContent = c ? 'COM 연결됨 ✔ · 누르면 해제' : 'COM 연결';   // v1.2.1 같은 버튼으로 연결/해제
+    $('btnConn').classList.toggle('on', c);
+    $('btnWifi').disabled = !c || busy;
+    if(!c) mark($('btnWifi'), null);
+    $('btnRead').disabled = !c || busy;
+    $('btnWrite').disabled = !c || busy;
+    $('btnSend').disabled = !c || busy || !ok;
+    if(!ok && !busy) status('ng','설정 값을 확인하세요','설정 › 빨간 칸');
+    else if(ok && $('status').dataset.cfg) status('');
+    $('status').dataset.cfg = (!ok && !busy) ? '1' : '';
+  }
+  let stopRead = false;                       // 통신 속도 바꿔 다시 열 때 수신 루프를 멈춘다
+  async function readLoop(){
+    while(port && port.readable && !stopRead){
+      reader = port.readable.getReader();
+      try{
+        while(true){
+          const { value, done } = await reader.read();
+          if(done) break;
+          const t = dec.decode(value, {stream:true});
+          rxBuf += t;
+          t.split(/\r?\n/).forEach(s => { if(s.trim()) log('rx', '<< '+s.trim()); });
+        }
+      }catch(e){ log('er', '수신 오류: '+e.message); break; }
+      finally{ reader.releaseLock(); reader = null; }
+    }
+  }
+  $('btnConn').onclick = async () => {
+    if(port){ if(!busy) await disconnect(); return; }   // 연결된 상태에서 누르면 해제
+    try{
+      const p = await navigator.serial.requestPort();
+      await p.open({ baudRate: +$('baud').value, dataBits:8, stopBits:1, parity:'none', flowControl:'none' });
+      // DTR/RTS 는 건드리지 않는다 — 업체 도구(CSerial 기본값)와 같게 (v1.2.3)
+      port = p; writer = port.writable.getWriter();
+      log('in', '연결됨 · '+$('baud').value+' 8N1');
+      readLoopDone = readLoop();
+    }catch(e){ if(e.name !== 'NotFoundError'){ log('er', '연결 실패: '+e.message); status('ng','COM 연결 실패', e.message); } }
+    setButtons();
+    if(port) run(readSettings);                // 연결되면 저장된 WiFi 이름·비밀번호를 바로 불러온다
+  };
+  async function disconnect(){
+    const p = port; port = null;
+    try{ if(reader) await reader.cancel(); }catch(_){}
+    try{ await readLoopDone; }catch(_){}
+    try{ if(writer){ writer.releaseLock(); writer = null; } }catch(_){}
+    try{ if(p) await p.close(); }catch(_){}
+    log('in', '연결 해제'); status('');
+    setButtons();
+  }
+  if('serial' in navigator) navigator.serial.addEventListener('disconnect', e => {
+    if(e.target === port){ log('er','COM 포트가 빠졌습니다'); port=null; writer=null; status('ng','COM 포트가 빠졌습니다'); setButtons(); }
+  });
+
+  async function tx(text, show){
+    log('tx', '>> '+(show || text.replace(/\r\n$/,'')));
+    await writer.write(enc.encode(text));
+  }
+  // 수신 버퍼에서 패턴 기다림 — 반드시 타임아웃
+  function waitFor(patterns, ms){
+    return new Promise(resolve => {
+      const t0 = Date.now();
+      (function poll(){
+        for(const p of patterns){ const m = rxBuf.match(p); if(m) return resolve(m); }
+        if(!port || Date.now()-t0 > ms) return resolve(null);
+        setTimeout(poll, 30);
+      })();
+    });
+  }
+
+  async function run(fn){
+    if(busy) return; busy = true; setButtons();
+    try{ await fn(); }catch(e){ log('er','오류: '+e.message); status('ng','실행 중 오류', e.message); }
+    busy = false; setButtons();
+  }
+
+  // 버튼 색 — 연결됨 초록 / 안 됨 빨강 / null 이면 원래 색 (v1.3.0 사장 지시)
+  function mark(btn, ok){ btn.classList.toggle('ok', ok === true); btn.classList.toggle('ng', ok === false); }
+
+  // ── WiFi 연결 확인 (v1.4.0 — JSN270 AT 명령어 매뉴얼 1.3.2 기준으로 다시 짬)
+  //   ★이전 판 오류: at+wstat 는 설정값(MODE=0,CHANNEL=,SSID=,BSSID=,SECURITY=)만 주고 IP·"CONNECTED" 가 없다(매뉴얼 p.6)
+  //     → 연결돼 있어도 항상 '판정 못함' 빨강이었음.
+  //   판정 = at+nstat 의 IP(적용된 IP만 표시, p.10) + at+wrssi 신호(dBm). 서버 소켓 = at+cid 의 REMOTE (p.13~14)
+  async function q(line, ms){ rxBuf = ''; await tx(line+'\r'); await waitFor([/\[OK\]|\bOK\b/i, /ERROR|INFO:NO CONNECT/i], ms || 3000); await sleep(150); return rxBuf; }
+  const realIp = s => s && s !== '0.0.0.0';
+
+  $('btnWifi').onclick = () => run(async () => {
+    resetSteps(); mark($('btnWifi'), null); log('in','── WiFi 연결 확인 ──');
+    status('run','명령 모드 진입 중…'); step('cmd','run','…');
+    if(!(await enterCmd())){ step('cmd','ng','응답 없음'); noResp(); mark($('btnWifi'), false); return; }
+    step('cmd','ok','응답');
+
+    status('run','WiFi 상태 조회 중…'); step('wifi','run','…');
+    const ws = await q('at+wstat');
+    const ns = await q('at+nstat');
+    const rs = await q('at+wrssi');
+    const cs = await q('at+cid');
+    await q('at+exit', 2000);                  // 데이터 모드 복귀
+
+    const ssid = (ws.match(/SSID=([^,\r\n]*)/i) || [])[1] || '';
+    const ip   = (ns.match(/\bIP=(\d{1,3}(?:\.\d{1,3}){3})/i) || [])[1] || '';
+    const rssi = (rs.match(/(-\d{1,3})\s/) || [])[1] || '';
+    const sock = (cs.match(/\b(\d{1,3}(?:\.\d{1,3}){3}):(\d{1,5})/) || []);
+    const noConn = /INFO:NO CONNECT|WIFI DISCONNECT/i.test(ns+rs);
+    const wifiOk = !noConn && (realIp(ip) || !!rssi);
+    const sockOk = realIp(sock[1]);
+
+    mark($('btnWifi'), wifiOk);
+    step('wifi', wifiOk ? 'ok' : 'ng', wifiOk ? (ip || rssi+'dBm') : '끊김');
+    if(wifiOk) status('ok','✔ WiFi 연결됨',
+      [ssid && 'WiFi '+esc(ssid), ip && 'IP '+ip, rssi && '신호 '+rssi+'dBm'].filter(Boolean).join(' · ')
+      + '<br>서버 소켓 ' + (sockOk ? '연결됨 '+sock[1]+':'+sock[2] : '<b>안 됨</b> — 서버 주소·인터넷 확인'));
+    else status('ng','✖ WiFi 연결 안 됨', (ssid ? '설정된 WiFi '+esc(ssid)+' · ' : '')+'WiFi 이름·비밀번호·2.4GHz 공유기 확인 (WiFi 설정)');
+  });
+
+  // ── WiFi 설정 ──
+  const fixIds = ['ip','gw','sm','dns'];
+  function showFix(){ const f = $('dhcp').value === '0'; document.querySelectorAll('.f.fix').forEach(el => el.hidden = !f); }
+  $('dhcp').addEventListener('change', showFix); showFix();
+  $('btnEye').onclick = () => { const p = $('pw'); p.type = p.type === 'password' ? 'text' : 'password'; $('btnEye').textContent = p.type === 'password' ? '보기' : '숨김'; };
+
+  // 명령 모드 진입 — +++ 앞뒤 무입력 (가드타임 추정 1초, 실기 미확인)
+  // v1.2.3 — ★업체 도구(CuracoCom.exe) 바이너리 실측: 모든 명령 끝 = CR 하나(\r), +++ 도 '+++\r' 로 보냄.
+  //   이전 판은 \r\n · '+++'(CR 없음)이라 모듈이 응답하지 않았음. OK·ERROR 둘 다 '통신됨'으로 본다.
+  // v1.2.2 — 명령 모드 진입을 AT 의 OK 로 확인한다(+++ 자체는 응답이 없을 수 있음)
+  //   ① 이미 명령 모드면 AT 에 OK  ② 아니면 +++ (앞뒤 1.1초 무입력) 후 AT
+  //   ③ 그래도 없으면 통신 속도를 바꿔 다시 시도 (모듈 속도가 9600 이 아닐 수 있음)
+  // v1.4.0 — 매뉴얼 p.19: 데이터 모드에서 '+++' → [OK]. ★'at' 를 먼저 보내지 않는다 —
+  //   데이터 모드면 'at' 가 그대로 운영 서버로 전송돼 패킷 앞에 붙는다(실측 'Sat+q' 같은 깨진 행 원인 가능).
+  //   이미 명령 모드면 '+++' 는 [ERROR:INVALID COMMAND] 로 응답 → 이것도 '통신됨'.
+  let lastRx = '';
+  async function tryCmd(){
+    await sleep(1100); rxBuf = ''; await tx('+++\r');
+    const ok = !!(await waitFor([/OK/i, /ERROR/i], 2000));
+    lastRx += rxBuf;
+    await sleep(300);
+    return ok;
+  }
+  async function reopen(baud){
+    stopRead = true;
+    try{ if(reader) await reader.cancel(); }catch(_){}
+    try{ await readLoopDone; }catch(_){}
+    try{ writer.releaseLock(); }catch(_){}
+    await port.close();
+    await port.open({ baudRate: baud, dataBits:8, stopBits:1, parity:'none', flowControl:'none' });
+    writer = port.writable.getWriter();
+    stopRead = false; readLoopDone = readLoop();
+    $('baud').value = String(baud);
+    log('in', '통신 속도 '+baud+' 으로 다시 연결');
+  }
+  async function enterCmd(){
+    lastRx = '';
+    if(await tryCmd()) return true;
+    const first = +$('baud').value;
+    for(const b of [9600, 115200, 57600, 38400, 19200]){
+      if(b === first) continue;
+      status('run', '응답 없음 — 통신 속도 '+b+' 로 시도 중…');
+      await reopen(b);
+      if(await tryCmd()){ log('in', '통신 속도 '+b+' 에서 응답'); return true; }
+    }
+    await reopen(first);
+    return false;
+  }
+  function noResp(){
+    const got = lastRx.replace(/\s/g,'').length;
+    status('ng', '모듈 응답 없음 (속도 5종 모두)', got ? '글자는 왔으나 OK 없음 — 통신 기록 원문 확인'
+                                                   : '아무 글자도 안 옴 — 배선 TX↔RX 교차 · 5V 전원 · 어댑터 5V 대응 확인');
+  }
+  // AT 한 줄 — ERROR 면 실패, 아무 응답 없으면 실패, OK 또는 다른 응답이면 통과(형식 미확인이라 원문은 기록에)
+  async function cmd(line, ms, until){
+    rxBuf = ''; await tx(line+'\r');
+    const m = await waitFor(until || [/OK/i, /ERROR/i], ms || 3000);
+    await sleep(150);
+    if(/ERROR/i.test(rxBuf)) return { ok:false, why:'ERROR' };
+    if(!m && !rxBuf.replace(/\s/g,'').toLowerCase().split(line.replace(/\s/g,'').toLowerCase()).join('')) return { ok:false, why:'응답 없음' };   // 에코만 왔으면 무응답
+    return { ok:true, text: rxBuf };
+  }
+  const ipOk = s => /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(s) && s.split('.').every(n => +n <= 255);
+
+  // 모듈 설정 읽기 — +++ → at&v → at+exit. COM 연결 직후 자동 실행 (v1.2.0 사장 지시: 저장된 WiFi 이름·비밀번호를 불러와 보이게)
+  //   ★at&v 응답 형식 미확인 → 흔한 표기(WAUTO=0,SSID / SSID: / WWPA= / PASS: 등)를 찾아 채우고, 못 찾으면 원문은 통신 기록
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  async function readSettings(){
+    log('in','── 모듈 설정 읽기 ──'); status('run','저장된 WiFi 설정 불러오는 중…');
+    if(!(await enterCmd())){ noResp(); return; }
+    const r = await cmd('at&v', 4000);
+    const ws = await q('at+wstat');            // 매뉴얼 p.6 — SSID=… 확실히 나오는 명령 (at&v 형식은 매뉴얼에 예시 없음)
+    await cmd('at+exit', 2000);
+    if(!r.ok && !/SSID=/i.test(ws)){ status('ng','설정 읽기 실패', r.why); return; }
+    const t = (r.text || '') + '\n' + ws;
+    let ssid = '', pw = '', m;
+    m = t.match(/WAUTO\s*[=:]\s*\d+\s*,\s*"?([^",\r\n]+)"?/i) || t.match(/SSID\s*[=:]\s*"?([^",\r\n]+)"?/i);
+    if(m) ssid = m[1].trim();
+    m = t.match(/(?:WWPA|WWEP|WPA|PSK|PASS\w*|KEY)\s*[=:]\s*"?([^",\r\n]+)"?/i);
+    if(m) pw = m[1].trim();
+    if(ssid) $('ssid').value = ssid;
+    if(pw){ $('pw').value = pw; $('pw').type = 'text'; $('btnEye').textContent = '숨김'; }
+    m = t.match(/NAUTO[^\r\n]*?(\d{1,3}(?:\.\d{1,3}){3})\D+(\d{2,5})/i);
+    if(m){ $('sip').value = m[1]; $('sport').value = m[2]; }
+    if(ssid || pw) $('wifiBox').open = true;
+    if(!ssid && !pw){ status('chk','설정은 받았으나 WiFi 이름·비밀번호를 찾지 못함','통신 기록에서 원문 확인'); return; }
+    status('ok','저장된 WiFi', 'WiFi 이름 <b>'+esc(ssid || '(못 찾음)')+'</b> · 비밀번호 <b>'+esc(pw || '(모듈이 알려주지 않음)')+'</b>');
+  }
+  $('btnRead').onclick = () => run(readSettings);
+
+  // 모듈에 쓰기 — 업체 도구 순서. 단계마다 확인, 실패하면 그 자리에서 멈춤
+  $('btnWrite').onclick = () => run(async () => {
+    const ssid = $('ssid').value.trim(), pw = $('pw').value, sec = $('sec').value, dhcp = $('dhcp').value;
+    const sip = $('sip').value.trim(), sport = $('sport').value.trim();
+    if(!ssid){ status('ng','WiFi 이름(SSID)을 넣으세요'); return; }
+    if(sec !== '0' && !pw){ status('ng','비밀번호를 넣으세요'); return; }
+    if(/[,\r\n"]/.test(ssid+pw)){ status('ng','SSID·비밀번호에 쉼표·따옴표는 쓸 수 없습니다'); return; }
+    if(!ipOk(sip) || !/^\d{1,5}$/.test(sport)){ status('ng','서버 주소·포트를 확인하세요'); return; }
+    if(dhcp === '0' && !fixIds.every(id => ipOk($(id).value.trim()))){ status('ng','고정 IP 4칸을 확인하세요'); return; }
+    const sum = 'WiFi: '+ssid+'\n보안: '+$('sec').selectedOptions[0].text+'\nIP: '+(dhcp==='1'?'자동(DHCP)':'고정 '+$('ip').value)+'\n서버: '+sip+':'+sport+'\n\n모듈에 저장합니다. 진행할까요?';
+    if(!confirm(sum)) return;
+
+    log('in','── 모듈에 쓰기 ──'); status('run','명령 모드 진입 중…');
+    if(!(await enterCmd())){ noResp(); return; }
+    log('in','쓰기 전 현재 설정 (되돌리기용) ↓');
+    await cmd('at&v', 4000);
+
+    const seq = [['WiFi 이름','at+wauto=0,'+ssid], ['보안 방식','at+wsec='+sec]];
+    if(sec === '1') seq.push(['비밀번호','at+wwep='+pw]); else if(sec === '2') seq.push(['비밀번호','at+wwpa='+pw]);
+    if(dhcp === '1') seq.push(['IP 자동','at+ndhcp=1']);
+    else seq.push(['IP 고정','at+ndhcp=0'], ['IP 주소','at+nset='+['ip','sm','gw','dns'].map(id => $(id).value.trim()).join(',')]);
+    seq.push(['서버','at+nauto=0,1,'+sip+','+sport], ['부팅 데이터 모드','atc=2'], ['저장','at&w']);
+    for(const [name, line] of seq){
+      status('run', name+' 쓰는 중…');
+      const r = await cmd(line, 3000);
+      if(!r.ok){ status('ng','✖ '+name+' 실패 — 여기서 멈춤', r.why+' · 통신 기록 확인'); await cmd('at+exit', 2000); return; }
+    }
+    // 매뉴얼 p.11: at+nauto(서버) 변경은 재시작해야 적용 → at+wstart 대신 at+reset.
+    //   재부팅 후 atc=2 라 WiFi→IP→서버 소켓까지 자동 연결하고 데이터 모드로 들어간다(p.18)
+    status('run','재시작 후 공유기·서버 접속 중… (최대 40초)');
+    rxBuf = ''; await tx('at+reset\r');
+    await waitFor([/CONNECT\s+\d/i, /ERROR:(?:WIFI|DHCP) TIMEOUT|ERROR:OPEN SOCKET/i], 40000);
+    await sleep(500);
+    const ev = rxBuf;
+    const wifi = /WIFI CONNECT/i.test(ev), ipGot = /IP ACQUIRED/i.test(ev) || dhcp === '0', sock = /CONNECT\s+\d/i.test(ev.replace(/WIFI CONNECT/ig,''));
+    mark($('btnWifi'), wifi ? true : (/ERROR:WIFI TIMEOUT/i.test(ev) ? false : null));
+    if(wifi && ipGot && sock) status('ok','✔ 저장·접속 완료', esc(ssid)+' · 서버 소켓 연결됨 · 이제 [테스트 데이터 전송]');
+    else if(wifi) status('chk','저장됨 — WiFi 연결, 서버 소켓 미확인', (ipGot?'':'IP 못 받음 · ')+'[WiFi 연결 확인]으로 다시 확인');
+    else status(/TIMEOUT/i.test(ev) ? 'ng' : 'chk', /TIMEOUT/i.test(ev) ? '✖ 저장됨 — 공유기 접속 실패' : '저장됨 — 접속 메시지 못 받음',
+                'SSID·비밀번호·2.4GHz 확인 · 통신 기록 원문 확인');
+  });
+
+  // ── 테스트 데이터 전송: 데이터 모드에서 패킷을 그대로 쓴다 (양산 send_JSN1000 방식 — AT 명령 없음)
+  //    모듈이 부팅 시 서버로 TCP 자동 접속(atc=2·at+nauto)돼 있어야 함. 모듈은 성공 응답을 주지 않는다.
+  $('btnSend').onclick = () => run(async () => {
+    if(!validate()) return;
+    resetSteps(); log('in','── 테스트 데이터 전송 ──');
+    const h = hms(), pkt = buildPacket(h), len = enc.encode(pkt).length;
+    status('run','전송 중…'); step('send','run','…');
+    rxBuf = '';
+    await tx(pkt, pkt.replace(/\r\n$/,'␍␊')+'  ('+len+'B)');
+    await sleep(2000);                       // 모듈·서버가 돌려주는 글자가 있으면 기록에 남긴다
+    // 성공 여부를 모듈이 알려주지 않음 → 초록(성공)도 빨강(실패)도 아닌 노랑 「확인 필요」 (v1.0.1)
+    step('send','run','보냄·미확인');
+    status('chk','⚠ 보냄 — 도착 미확인', $('sn').value+' · '+h+' → 아래 [큐라코 서버]에서 '+$('sn').value+' 이 있으면 성공');
+  });
+
+  setButtons();
+})();
+</script>
+<script src="config.js"></script>
+<script>
+/* ★비밀번호 게이트 로직 (config.js 의 ENABLED·PASSWORD_SHA256 사용 — index.html 과 같은 세션 키라 한 번 풀면 같이 열림) */
+(function(){
+  var C = window.SITE_CONFIG || { ENABLED:true, PASSWORD_SHA256:"" };
+  var gate=document.getElementById('gate'), msg=document.getElementById('gmsg'),
+      pw=document.getElementById('gpw'), btn=document.getElementById('gbtn'), err=document.getElementById('gerr');
+  function unlock(){ try{ sessionStorage.setItem('cura_ok','1'); }catch(e){} gate.style.display='none'; }
+  if(C.ENABLED===false){ pw.style.display='none'; btn.style.display='none';
+    msg.innerHTML='현재 <b>잠금(중지)</b> 상태입니다.'; return; }
+  try{ if(sessionStorage.getItem('cura_ok')==='1'){ gate.style.display='none'; } }catch(e){}
+  async function sha256(s){ var b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join(''); }
+  async function check(){ err.textContent='';
+    var h=await sha256(pw.value||'');
+    if(h===String(C.PASSWORD_SHA256||'').toLowerCase()){ unlock(); }
+    else { err.textContent='비밀번호가 틀렸습니다.'; pw.value=''; pw.focus(); } }
+  if(btn){ btn.addEventListener('click', check); }
+  if(pw){ pw.addEventListener('keydown', function(e){ if(e.key==='Enter'){ check(); } }); pw.focus(); }
+})();
+</script>
+</body></html>

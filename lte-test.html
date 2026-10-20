@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CURA1020 LTE 연결 테스트</title>
+<style>
+/* v1.1.0 — 화면 단순화: 버튼 2개 + 결과 1줄, 설정·통신 기록은 처음에 접힘 (2026-10-20 사장 지시) */
+:root{
+  --bg:#eef5fb; --card:#ffffff; --line:#d8e6f2; --ink:#1f3864; --sub:#6b7c90;
+  --sky:#2f9fe0; --sky-d:#1b7fb8; --sky-l:#e8f4fd; --ok:#1e9e56; --fail:#d64545;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+     font-family:'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;
+     display:flex;justify-content:center;padding:28px 16px}
+.panel{width:100%;max-width:520px;background:var(--card);border:1px solid var(--line);
+       border-radius:16px;padding:0 24px 20px;box-shadow:0 2px 14px rgba(31,56,100,.07)}
+.top{display:flex;align-items:center;padding:18px 0 12px;border-bottom:3px solid var(--sky);margin-bottom:20px}
+h1{font-size:20px;margin:0;font-weight:700}
+.ver{font-size:11px;font-weight:600;color:var(--sky-d);margin-left:8px}
+.sw{margin-left:auto;font-size:13px;font-weight:700;color:var(--sky-d);text-decoration:none;
+    border:1.5px solid var(--sky);border-radius:20px;padding:4px 14px}
+.sw:hover{background:var(--sky-l)}
+.warn{display:none;background:#fdecec;border:1px solid #f3c2c2;border-radius:10px;
+      padding:10px 12px;font-size:13px;color:#b03434;margin-bottom:14px}
+.warn.show{display:block}
+
+button{font-family:inherit;font-weight:700;border:0;border-radius:12px;cursor:pointer;transition:.15s;width:100%}
+button:disabled{opacity:.4;cursor:default;box-shadow:none}
+.big{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.conn{background:#fff;color:var(--ink);border:2px solid var(--line);padding:16px;font-size:17px}
+.conn:hover:not(:disabled){border-color:var(--sky);color:var(--sky-d)}
+.conn.on{border-color:var(--ok);color:var(--ok);background:#f2fbf5}
+.go{background:var(--sky);color:#fff;padding:18px;font-size:19px;box-shadow:0 2px 8px rgba(47,159,224,.3)}
+.go:hover:not(:disabled){background:var(--sky-d)}
+.row2{display:grid;grid-template-columns:3fr 2fr;gap:10px}
+.go2{background:#fff;color:var(--sky-d);border:2px solid var(--sky);padding:16px 8px;font-size:17px}
+.go2:hover:not(:disabled){background:var(--sky-l)}
+.go2.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.go2.ng{background:var(--fail);border-color:var(--fail);color:#fff}
+
+.status{border-radius:12px;padding:14px;font-size:16px;font-weight:700;text-align:center;
+        background:#f6f9fc;color:var(--sub);margin-bottom:16px;min-height:52px}
+.status.ok{background:#eefaf2;color:var(--ok)}
+.status.ng{background:#fdf1f1;color:var(--fail)}
+.status.run{background:var(--sky-l);color:var(--sky-d)}
+.status[hidden]{display:none}
+.srv{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:15px;color:var(--sky-d);
+     border:1.5px solid var(--sky);border-radius:12px;padding:12px;margin-bottom:16px}
+.srv:hover{background:var(--sky-l)}
+.status small{display:block;font-weight:400;font-size:12.5px;color:var(--ink);margin-top:3px}
+
+details{border-top:1px solid var(--line)}
+summary{cursor:pointer;padding:11px 2px;font-size:13.5px;color:var(--sub);font-weight:600;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'▸ ';color:var(--sky)}
+details[open] summary::before{content:'▾ '}
+.inner{padding:0 2px 14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f{display:flex;flex-direction:column;gap:4px}
+label{font-size:12px;color:var(--sub);font-weight:600}
+input,select{background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:8px;
+       padding:8px 10px;font-size:14px;font-family:inherit;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--sky)}
+input.bad{border-color:var(--fail)}
+.hint{font-size:12px;color:#8a5a0a;margin-top:10px}
+.pkt{font-family:Consolas,monospace;font-size:12px;background:#f6f9fc;border-radius:8px;padding:8px 10px;
+     word-break:break-all;margin-top:10px;color:#2a4a6e}
+.small{background:#fff;color:var(--ink);border:1.5px solid var(--line);padding:9px;font-size:14px;margin-top:10px}
+
+.steps{list-style:none;margin:0 0 10px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.steps li{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px}
+.steps li b{display:block;font-size:11px;color:var(--sub);font-weight:600}
+.steps li.ok{border-color:#b9e3c9;background:#eefaf2;color:var(--ok)}
+.steps li.ng{border-color:#f3c2c2;background:#fdf1f1;color:var(--fail)}
+.steps li.run{border-color:#bfdff5;background:var(--sky-l);color:var(--sky-d)}
+#log{background:#0f1f33;color:#d6e6f7;font-family:Consolas,monospace;font-size:12px;line-height:1.5;
+     border-radius:8px;padding:8px 10px;height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+#log .tx{color:#7cc4f5}#log .rx{color:#c9f0c9}#log .er{color:#ff9d9d}#log .in{color:#f5d27c}
+@media(max-width:480px){.panel{padding:0 16px 16px}.grid{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,1fr)}}
+</style></head>
+<body>
+<!-- ★비밀번호 게이트 (비번·ON/OFF는 config.js 에서 관리 — index.html 과 같음) -->
+<div id="gate" style="position:fixed;inset:0;z-index:9999;background:#f4f8fb;display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;border:1.5px solid #cfe0ee;border-radius:14px;padding:28px 26px;max-width:340px;width:86%;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center">
+    <div style="font-size:18px;font-weight:700;color:#1a3b57;margin-bottom:4px">CURA 연결 테스트</div>
+    <div id="gmsg" style="font-size:13px;color:#5b7189;margin-bottom:16px">비밀번호를 입력하세요</div>
+    <input id="gpw" type="password" autocomplete="off" placeholder="비밀번호"
+      style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #cfe0ee;border-radius:10px;font-size:15px;margin-bottom:10px">
+    <button id="gbtn" type="button"
+      style="width:100%;padding:11px;border:0;border-radius:10px;background:#2f8fd6;color:#fff;font-size:15px;font-weight:600;cursor:pointer">확인</button>
+    <div id="gerr" style="font-size:12.5px;color:#c0392b;margin-top:10px;min-height:16px"></div>
+  </div>
+</div>
+<main class="panel">
+  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.3.0</span>
+    <a class="sw" href="wifi-test.html">WiFi</a></div>
+  <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
+
+  <div class="big">
+    <button class="conn" id="btnConn">COM 연결</button>
+    <div class="row2">
+      <button class="go" id="btnSend" disabled>테스트 데이터 전송</button>
+      <button class="go2" id="btnOpen" disabled>LTE 개통 확인</button>
+    </div>
+  </div>
+  <div class="status" id="status" hidden></div>
+  <a class="srv" href="https://crcadm.toksol.com/list_machine.php" target="_blank" rel="noopener">큐라코 서버 ↗</a>
+
+  <!-- 처음에는 접힘 (open 속성 없음) -->
+  <details>
+    <summary>설정</summary>
+    <div class="inner">
+      <div class="grid">
+        <div class="f"><label for="sn">시리얼</label><input id="sn" value="TS001" maxlength="5"></div>
+        <div class="f"><label for="baud">통신 속도</label>
+          <select id="baud"><option>115200</option><option>9600</option><option>57600</option></select></div>
+        <div class="f"><label for="host">서버 주소</label><input id="host" value="43.201.88.87"></div>
+        <div class="f"><label for="port">포트</label><input id="port" value="8888" inputmode="numeric"></div>
+        <div class="f"><label for="err">에러코드 E</label><input id="err" value="00" maxlength="2"></div>
+      </div>
+      <div class="pkt" id="pktTxt"></div>
+      <div class="hint">⚠ 기본 서버 = 운영 서버. 시험용 시리얼을 쓰세요.</div>
+      <button class="small" id="btnCheck" disabled>모뎀 상태만 확인</button>
+    </div>
+  </details>
+
+  <details>
+    <summary>통신 기록</summary>
+    <div class="inner">
+      <ul class="steps" id="steps">
+        <li data-k="at"><b>모뎀</b><span>-</span></li>
+        <li data-k="sim"><b>유심</b><span>-</span></li>
+        <li data-k="csq"><b>신호</b><span>-</span></li>
+        <li data-k="reg"><b>망 등록</b><span>-</span></li>
+        <li data-k="pdp"><b>데이터 접속</b><span>-</span></li>
+        <li data-k="open"><b>서버 접속</b><span>-</span></li>
+        <li data-k="send"><b>전송</b><span>-</span></li>
+      </ul>
+      <div id="log"></div>
+    </div>
+  </details>
+</main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  let port = null, reader = null, writer = null, rxBuf = '', busy = false, readLoopDone = null;
+
+  if(!('serial' in navigator)){ $('noSerial').classList.add('show'); }
+
+  // ── 기록 ──
+  function now(){ const d=new Date(); return d.toTimeString().slice(0,8)+'.'+String(d.getMilliseconds()).padStart(3,'0'); }
+  function log(cls, txt){
+    const el = $('log'), line = document.createElement('div');
+    line.className = cls; line.textContent = now()+'  '+txt;
+    el.appendChild(line); el.scrollTop = el.scrollHeight;
+  }
+
+  // ── 결과 한 줄 ──
+  // 대기 안내(kind 없음)는 숨김 — 진행·결과·오류만 보인다 (v1.1.1)
+  function status(kind, msg, sub){
+    $('status').hidden = !kind;
+    $('status').className = 'status '+(kind||'');
+    $('status').innerHTML = msg+(sub?'<small>'+sub+'</small>':'');
+  }
+
+  // ── 패킷 (양산 명세 v1.2.0 — 정지 상태·기록 없음) ──
+  function hms(){ return new Date().toTimeString().slice(0,8); }
+  function buildPacket(h){
+    const sn = $('sn').value, e = $('err').value.padStart(2,'0');
+    return '#S#'+sn+'-{E:'+e+',M:1,F:00,U:00,S:I(S),T:000,N:00000000000000,A:0,P:00-,H:'+h+',B:0000,R{}}#E#\r\n';
+  }
+  function validate(){
+    const snOk = /^[A-Za-z0-9]{5}$/.test($('sn').value);
+    const eOk = /^\d{1,2}$/.test($('err').value);
+    const hOk = /^[\w.\-]+$/.test($('host').value.trim());
+    const pOk = /^\d{1,5}$/.test($('port').value) && +$('port').value <= 65535;
+    $('sn').classList.toggle('bad', !snOk); $('err').classList.toggle('bad', !eOk);
+    $('host').classList.toggle('bad', !hOk); $('port').classList.toggle('bad', !pOk);
+    $('pktTxt').textContent = buildPacket('hh:mm:ss').replace('\r\n','␍␊');
+    return snOk && eOk && hOk && pOk;
+  }
+  ['sn','err','host','port'].forEach(id => $(id).addEventListener('input', () => { validate(); setButtons(); }));
+
+  // ── 단계 칸 ──
+  function step(k, state, txt){
+    const li = document.querySelector('#steps li[data-k="'+k+'"]');
+    li.className = state || ''; li.querySelector('span').textContent = txt;
+  }
+  function resetSteps(){ ['at','sim','csq','reg','pdp','open','send'].forEach(k => step(k, '', '-')); }
+
+  // ── 시리얼 ──
+  function setButtons(){
+    const c = !!port, ok = validate();
+    $('btnConn').disabled = busy || !('serial' in navigator);
+    $('btnConn').textContent = c ? 'COM 연결됨 ✔ · 누르면 해제' : 'COM 연결';   // v1.2.1 같은 버튼으로 연결/해제
+    $('btnConn').classList.toggle('on', c);
+    $('btnCheck').disabled = !c || busy;
+    $('btnSend').disabled = !c || busy || !ok;
+    $('btnOpen').disabled = !c || busy;
+    if(!c) mark($('btnOpen'), null);
+    if(!ok && !busy) status('ng','설정 값을 확인하세요','설정 › 빨간 칸');
+    else if(ok && $('status').dataset.cfg) status('', c ? '연결됨 — 전송 버튼을 누르세요' : 'COM 포트를 연결하세요');
+    $('status').dataset.cfg = (!ok && !busy) ? '1' : '';
+  }
+  async function readLoop(){
+    while(port && port.readable){
+      reader = port.readable.getReader();
+      try{
+        while(true){
+          const { value, done } = await reader.read();
+          if(done) break;
+          const t = dec.decode(value, {stream:true});
+          rxBuf += t;
+          t.split(/\r?\n/).forEach(s => { if(s.trim()) log('rx', '<< '+s.trim()); });
+        }
+      }catch(e){ log('er', '수신 오류: '+e.message); break; }
+      finally{ reader.releaseLock(); reader = null; }
+    }
+  }
+  $('btnConn').onclick = async () => {
+    if(port){ if(!busy) await disconnect(); return; }   // 연결된 상태에서 누르면 해제
+    try{
+      const p = await navigator.serial.requestPort();
+      await p.open({ baudRate: +$('baud').value, dataBits:8, stopBits:1, parity:'none', flowControl:'none' });
+      try{ await p.setSignals({ dataTerminalReady:false, requestToSend:false }); }catch(_){}
+      port = p; writer = port.writable.getWriter();
+      log('in', '연결됨 · '+$('baud').value+' 8N1');
+      readLoopDone = readLoop();
+      status('', '연결됨 — 전송 버튼을 누르세요');
+    }catch(e){ if(e.name !== 'NotFoundError'){ log('er', '연결 실패: '+e.message); status('ng','COM 연결 실패', e.message); } }
+    setButtons();
+  };
+  async function disconnect(){
+    const p = port; port = null;
+    try{ if(reader) await reader.cancel(); }catch(_){}
+    try{ await readLoopDone; }catch(_){}
+    try{ if(writer){ writer.releaseLock(); writer = null; } }catch(_){}
+    try{ if(p) await p.close(); }catch(_){}
+    log('in', '연결 해제'); status('', 'COM 포트를 연결하세요');
+    setButtons();
+  }
+  if('serial' in navigator) navigator.serial.addEventListener('disconnect', e => {
+    if(e.target === port){ log('er','COM 포트가 빠졌습니다'); port=null; writer=null; status('ng','COM 포트가 빠졌습니다'); setButtons(); }
+  });
+
+  async function tx(text, show){
+    log('tx', '>> '+(show || text.replace(/\r\n$/,'')));
+    await writer.write(enc.encode(text));
+  }
+  // 수신 버퍼에서 패턴 기다림 — 반드시 타임아웃
+  function waitFor(patterns, ms){
+    return new Promise(resolve => {
+      const t0 = Date.now();
+      (function poll(){
+        for(const p of patterns){ const m = rxBuf.match(p); if(m) return resolve(m); }
+        if(!port || Date.now()-t0 > ms) return resolve(null);
+        setTimeout(poll, 30);
+      })();
+    });
+  }
+  async function at(cmd, ms, patterns){
+    rxBuf = '';
+    await tx(cmd+'\r\n');
+    return waitFor(patterns || [/\r\nOK\r\n|^OK\r\n/m, /ERROR/], ms || 3000);
+  }
+
+  // ── 상태 확인: 응답 · 유심 · 신호 · 망 등록 ──
+  async function check(){
+    status('run','모뎀 확인 중…');
+    let m = await at('AT', 2000);
+    if(!m || /ERROR/.test(m[0])) m = await at('AT', 2000);        // 첫 바이트 유실 대비 1회 재시도
+    if(!m || /ERROR/.test(m[0])){ step('at','ng','응답 없음'); status('ng','모뎀 응답 없음','배선·전원·통신 속도·COM 번호 확인'); return false; }
+    step('at','ok','정상');
+
+    status('run','유심 확인 중…');
+    m = await at('AT+CPIN?', 5000, [/\+CPIN:\s*([^\r\n]+)/, /ERROR/]);
+    if(!m || !/READY/.test(m[0])){ step('sim','ng', m ? (m[1]||'오류') : '응답 없음'); status('ng','유심 인식 안 됨','유심 장착·개통 확인'); return false; }
+    step('sim','ok','READY');
+
+    m = await at('AT+CSQ', 3000, [/\+CSQ:\s*(\d+),/, /ERROR/]);
+    const rssi = m && m[1] ? +m[1] : 99;
+    if(rssi === 99) step('csq','ng','측정 불가');
+    else step('csq', rssi >= 10 ? 'ok' : 'ng', rssi+'/31');
+
+    status('run','망 등록 확인 중…');
+    m = await at('AT+CEREG?', 3000, [/\+CEREG:\s*\d+,(\d+)/, /ERROR/]);
+    const st = m && m[1];
+    const regTxt = {'1':'홈','5':'로밍','2':'검색 중','0':'미등록','3':'거부'}[st] || '확인 불가';
+    if(st === '1' || st === '5'){ step('reg','ok',regTxt); return true; }
+    step('reg','ng',regTxt);
+    status('ng','망 등록 안 됨', st === '2' ? '전원 직후면 1분 뒤 다시' : st === '3' ? '통신사가 거부 — 미개통·정지 가능성' : '유심 개통·안테나 확인');
+    return false;
+  }
+
+  async function run(fn){
+    if(busy) return; busy = true; setButtons();
+    try{ await fn(); }catch(e){ log('er','오류: '+e.message); status('ng','실행 중 오류', e.message); }
+    busy = false; setButtons();
+  }
+
+  $('btnCheck').onclick = () => run(async () => {
+    resetSteps(); log('in','── 모뎀 상태 확인 ──');
+    if(await check()) status('ok','모뎀 정상');
+  });
+
+  // 버튼 색 — 연결됨 초록 / 안 됨 빨강 / null 이면 원래 색 (v1.3.0 사장 지시)
+  function mark(btn, ok){ btn.classList.toggle('ok', ok === true); btn.classList.toggle('ng', ok === false); }
+
+  // ── LTE 개통 확인: 유심 READY + 망 등록 + 데이터 접속(IP 받음) = 개통. 서버로는 아무것도 보내지 않는다 ──
+  $('btnOpen').onclick = () => run(async () => {
+    resetSteps(); mark($('btnOpen'), null); log('in','── LTE 개통 확인 ──');
+    if(!(await check())){ mark($('btnOpen'), false); return; }
+
+    // 식별 정보 — 개통 서류(모뎀·유심 일련번호) 대조용. 명령이 모듈마다 달라 순서대로 시도
+    status('run','모뎀·유심 정보 읽는 중…');
+    let r = await at('AT+CGSN', 3000, [/(\d{15})/, /ERROR/]);
+    const imei = r && r[1] ? r[1] : '';
+    let iccid = '';
+    for(const c of ['AT+QCCID','AT+CCID','AT+ICCID']){
+      r = await at(c, 3000, [/(89\d{16,18}[0-9A-F]?)/i, /ERROR/]);
+      if(r && r[1]){ iccid = r[1]; break; }
+    }
+    r = await at('AT+COPS?', 5000, [/\+COPS:\s*\d+,\d+,"([^"]+)"/, /\+COPS:\s*\d+\s*\r/, /ERROR/]);
+    const op = r && r[1] ? r[1] : '';
+
+    // 데이터 접속 — 접속돼 있지 않으면 한 번 붙여 본다 (QIOPEN 때와 같은 일, 서버 접속은 안 함)
+    status('run','데이터 접속 확인 중…'); step('pdp','run','…');
+    const ipPat = /\+QIACT:\s*1,1,\d+,"([^"]+)"/;
+    r = await at('AT+QIACT?', 5000, [ipPat, /\r\nOK\r\n|^OK\r\n/m, /ERROR/]);
+    let ip = r && r[1] ? r[1] : '';
+    if(!ip){
+      await at('AT+QIACT=1', 150000);          // 매뉴얼상 최대 150초
+      r = await at('AT+QIACT?', 5000, [ipPat, /\r\nOK\r\n|^OK\r\n/m, /ERROR/]);
+      ip = r && r[1] ? r[1] : '';
+    }
+    const info = [op, imei && 'IMEI '+imei, iccid && 'ICCID '+iccid].filter(Boolean).join(' · ');
+    if(!ip){
+      step('pdp','ng','IP 없음'); mark($('btnOpen'), false);
+      status('ng','✖ 데이터 접속 안 됨 — 개통 미완료 가능', '유심·망은 정상, 데이터 요금제·APN 확인'+(info?'<br>'+info:''));
+      return;
+    }
+    step('pdp','ok','IP 받음'); mark($('btnOpen'), true);
+    status('ok','✔ 개통 확인됨', 'IP '+ip+(info?'<br>'+info:''));
+  });
+
+  $('btnSend').onclick = () => run(async () => {
+    if(!validate()) return;
+    resetSteps(); log('in','── 테스트 데이터 전송 ──');
+    if(!(await check())) return;
+
+    // 양산 send_LM5() 와 같은 순서: qiopen → qisend → 패킷. 모뎀이 qiopen 때 데이터 접속을 스스로 함(2026-10-20 실측)
+    const host = $('host').value.trim(), prt = $('port').value;
+    status('run','서버 접속 중…'); step('open','run','…');
+    rxBuf = '';
+    await tx('at+qiopen=1,0,"TCP","'+host+'",'+prt+'\r\n');
+    const m = await waitFor([/\+QIOPEN:\s*0,(\d+)/, /ERROR/], 45000);   // 모뎀 응답 최대 40초
+    if(!m || /ERROR/.test(m[0])){ step('open','ng', m ? 'ERROR' : '시간 초과'); status('ng','서버 접속 실패','서버 주소·요금제 확인'); return; }
+    if(m[1] !== '0' && m[1] !== '563'){ step('open','ng','오류 '+m[1]); status('ng','서버 접속 오류 '+m[1]); return; }  // 563 = 소켓 이미 열림(정상)
+    step('open','ok', m[1] === '563' ? '이미 열림' : '접속');
+
+    const h = hms(), pkt = buildPacket(h), len = enc.encode(pkt).length;
+    status('run','전송 중…'); step('send','run','…');
+    rxBuf = '';
+    await tx('at+qisend=0,'+String(len).padStart(3,'0')+'\r\n');
+    if(!(await waitFor([/>/], 5000))){ step('send','ng','> 없음'); status('ng','전송 준비 응답 없음'); return; }
+    rxBuf = '';
+    await tx(pkt, pkt.replace(/\r\n$/,'␍␊')+'  ('+len+'B)');
+    const r = await waitFor([/SEND OK/, /SEND FAIL/, /ERROR/], 10000);
+    if(r && /SEND OK/.test(r[0])){
+      step('send','ok','SEND OK');
+      status('ok','✔ 전송 완료', $('sn').value+' · '+h);
+    }else{
+      step('send','ng', r ? r[0] : '응답 없음');
+      status('ng','✖ 전송 실패', r ? r[0] : 'SEND OK 없음');
+    }
+    await at('AT+QICLOSE=0', 5000);   // 소켓 정리 — 응답 없어도 무시
+  });
+
+  setButtons();
+})();
+</script>
+<script src="config.js"></script>
+<script>
+/* ★비밀번호 게이트 로직 (config.js 의 ENABLED·PASSWORD_SHA256 사용 — index.html 과 같은 세션 키라 한 번 풀면 같이 열림) */
+(function(){
+  var C = window.SITE_CONFIG || { ENABLED:true, PASSWORD_SHA256:"" };
+  var gate=document.getElementById('gate'), msg=document.getElementById('gmsg'),
+      pw=document.getElementById('gpw'), btn=document.getElementById('gbtn'), err=document.getElementById('gerr');
+  function unlock(){ try{ sessionStorage.setItem('cura_ok','1'); }catch(e){} gate.style.display='none'; }
+  if(C.ENABLED===false){ pw.style.display='none'; btn.style.display='none';
+    msg.innerHTML='현재 <b>잠금(중지)</b> 상태입니다.'; return; }
+  try{ if(sessionStorage.getItem('cura_ok')==='1'){ gate.style.display='none'; } }catch(e){}
+  async function sha256(s){ var b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join(''); }
+  async function check(){ err.textContent='';
+    var h=await sha256(pw.value||'');
+    if(h===String(C.PASSWORD_SHA256||'').toLowerCase()){ unlock(); }
+    else { err.textContent='비밀번호가 틀렸습니다.'; pw.value=''; pw.focus(); } }
+  if(btn){ btn.addEventListener('click', check); }
+  if(pw){ pw.addEventListener('keydown', function(e){ if(e.key==='Enter'){ check(); } }); pw.focus(); }
+})();
+</script>
+</body></html>
