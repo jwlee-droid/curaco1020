@@ -3,6 +3,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CURA1020 WiFi 연결 테스트</title>
 <style>
+/* v1.6.0 — LTE 화면과 같은 수정 (2026-10-21 사장 지시): 모듈 교체 감지(유휴 중 RX 수신)·
+   [■ 중단] 버튼·연결 뒷정리(rxBuf 비움·port.close())·사용방법 1번에 도해(SVG)+선색표.
+   자동 대기는 넣지 않는다 — 사용자가 버튼으로 다시 확인한다.
+   기획 = 03_프로젝트\문서 공유 시스템\기획\기획_LTE테스트_모듈교체오판_사용방법개선_v1.0.0.md */
 /* v1.0.0 — JSN1000 WiFi 동글 연결 테스트. LTE 연결 테스트(lte-test.html v1.1.1)와 같은 틀 (2026-10-20 사장 지시)
    검토 = 03_프로젝트\하드웨어 검토\2026-10-20_JSN1000_WiFi연결테스트_웹페이지_가능성검토_v1.0.0.md */
 :root{
@@ -142,7 +146,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.5.2</span>
+  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.6.0</span>
     <button class="help" id="btnHelp" type="button" aria-expanded="false" aria-controls="helpMask">사용방법</button>
     <a class="sw" href="lte-test.html">LTE</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
@@ -152,6 +156,8 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     <div class="row2">
       <button class="go" id="btnSend" disabled>테스트 데이터 전송</button>
       <button class="go2" id="btnWifi" disabled>WiFi 연결 확인</button>
+      <!-- ★v1.6.0 실행 중에만 보이는 중단 버튼 -->
+      <button id="btnStop" hidden style="grid-column:1/-1;width:100%;margin-top:8px;padding:12px;border:0;border-radius:12px;background:#c0392b;color:#fff;font-size:16px;font-weight:700;cursor:pointer">■ 중단</button>
     </div>
   </div>
   <div class="status" id="status" hidden></div>
@@ -224,7 +230,54 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
         <div class="mk-f"><i class="nb">4</i>WiFi 설정</div><div class="mk-f">설정</div><div class="mk-f">통신 기록</div>
       </div>
       <ol class="st">
-        <li><i class="nb">1</i><div><h3>JSN1000 연결</h3><p><b>5V 대응</b> USB-시리얼 어댑터 · 115200<br>노랑 TXD→어댑터 RX · 주황 RXD→어댑터 TX · 빨강 5V · 검정 GND</p></div></li>
+        <li><i class="nb">1</i><div><h3>JSN1000 연결</h3>
+          <p>모듈을 <b>USB-시리얼 어댑터</b>에 연결하고, 어댑터를 <b>PC의 USB 단자</b>에 꽂습니다.<br>
+          어댑터는 <b>5V 대응</b>인 것을 쓰고, 통신 속도는 <b>115200</b> 입니다.</p>
+          <details style="margin-top:7px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:700;color:#2f6f9f">그림으로 보기 — 어떻게 연결하나요?</summary>
+            <div style="margin-top:8px">
+              <!-- ★v1.6.0 도해: 사진 대신 그림. TX↔RX 가 서로 엇갈리는 것이 핵심 -->
+              <svg viewBox="0 0 520 220" style="width:100%;max-width:520px;height:auto;display:block" role="img" aria-label="PC와 USB 시리얼 어댑터, JSN1000 WiFi 모듈 연결 그림">
+                <rect x="6" y="54" width="96" height="74" rx="9" fill="#eef4fa" stroke="#9db8d0" stroke-width="1.6"/>
+                <text x="54" y="84" text-anchor="middle" font-size="14" font-weight="700" fill="#1a3b57">PC</text>
+                <text x="54" y="104" text-anchor="middle" font-size="11" fill="#5b7189">USB 단자</text>
+                <rect x="102" y="84" width="34" height="14" rx="3" fill="#cfe0ee" stroke="#9db8d0"/>
+                <rect x="136" y="48" width="132" height="92" rx="9" fill="#fff8e9" stroke="#e0b48a" stroke-width="1.6"/>
+                <text x="202" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#a9631e">USB-시리얼 어댑터</text>
+                <text x="202" y="86" text-anchor="middle" font-size="10.5" fill="#8a6a3a">(USB-TTL 변환기 · 5V 대응)</text>
+                <text x="150" y="106" font-size="11" font-weight="700" fill="#33415a">RX</text>
+                <text x="150" y="122" font-size="11" font-weight="700" fill="#33415a">TX</text>
+                <text x="150" y="136" font-size="11" fill="#54627c">5V · GND</text>
+                <circle cx="268" cy="102" r="3.4" fill="#e0a800"/><circle cx="268" cy="118" r="3.4" fill="#e07b1e"/>
+                <rect x="352" y="48" width="162" height="92" rx="9" fill="#eef9f2" stroke="#9ad3b4" stroke-width="1.6"/>
+                <text x="433" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#1e7a4d">WiFi 모듈</text>
+                <text x="433" y="86" text-anchor="middle" font-size="10.5" fill="#3f7a5c">JSN1000</text>
+                <text x="362" y="106" font-size="11" font-weight="700" fill="#33415a">TXD (노랑)</text>
+                <text x="362" y="122" font-size="11" font-weight="700" fill="#33415a">RXD (주황)</text>
+                <text x="362" y="136" font-size="11" fill="#54627c">5V(빨강) · GND(검정)</text>
+                <circle cx="352" cy="102" r="3.4" fill="#e0a800"/><circle cx="352" cy="118" r="3.4" fill="#e07b1e"/>
+                <path d="M268 102 C300 102, 320 102, 352 102" fill="none" stroke="#e0a800" stroke-width="2.6"/>
+                <path d="M268 118 C300 118, 320 118, 352 118" fill="none" stroke="#e07b1e" stroke-width="2.6"/>
+                <rect x="262" y="156" width="196" height="22" rx="6" fill="#fdeaea" stroke="#e3a3a3"/>
+                <text x="360" y="171" text-anchor="middle" font-size="11.5" font-weight="700" fill="#c0392b">노랑 TXD → 어댑터 RX · 주황 RXD → 어댑터 TX</text>
+                <text x="120" y="196" font-size="11" fill="#5b7189">빨강(5V)·검정(GND)도 함께 연결합니다. 3.3V 전용 어댑터는 쓰지 마세요.</text>
+              </svg>
+              <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px">
+                <tr style="background:#f2f7fb"><th style="border:1px solid #cfe0ee;padding:5px 7px;text-align:left">모듈 선 색</th><th style="border:1px solid #cfe0ee;padding:5px 7px;text-align:left">어댑터</th></tr>
+                <tr><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>노랑</b> TXD</td><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>RX</b></td></tr>
+                <tr><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>주황</b> RXD</td><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>TX</b></td></tr>
+                <tr><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>빨강</b></td><td style="border:1px solid #cfe0ee;padding:5px 7px">5V</td></tr>
+                <tr><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>검정</b></td><td style="border:1px solid #cfe0ee;padding:5px 7px">GND</td></tr>
+              </table>
+              <p style="font-size:12px;color:#8a5a12;background:#fff6e6;border:1px solid #f0c48a;border-radius:8px;padding:7px 9px;margin-top:8px">
+                어댑터는 <b>5V 대응</b>이어야 합니다. 3.3V 전용을 쓰면 통신이 안 되거나 불안정합니다.</p>
+              <p style="font-size:12px;color:#5b7189;margin-top:7px">
+                <b>안 될 때는 여기부터</b> — ① 노랑·주황을 바꿔 꽂지 않았는지 ② 어댑터가 5V 대응인지 ③ 속도가 115200 인지 ④ 모듈에 전원(빨강·검정)이 들어왔는지</p>
+            </div>
+          </details>
+        </div></li>
+        <li><i class="nb">!</i><div><h3>모듈을 바꿔 끼울 때</h3><p>새 모듈 신호가 들어오면 화면이 <b>이전 결과를 지우고</b> 알려 줍니다.<br>
+          모듈이 준비되면 <b>[WiFi 연결 확인]</b>을 다시 누르세요. 오래 걸리면 <b>[■ 중단]</b> 으로 멈출 수 있습니다.</p></div></li>
         <li><i class="nb">2</i><div><h3>[COM 연결]</h3><p>저장된 <b>WiFi 이름 · 비밀번호</b>를 자동으로 불러옴 · 한 번 더 누르면 해제</p></div></li>
         <li><i class="nb">3</i><div><h3>[WiFi 연결 확인]</h3><p><span class="g">초록</span> = 연결됨 — IP · 신호 · 서버 소켓 표시<br><span class="r">빨강</span> = 연결 안 됨</p></div></li>
         <li><i class="nb">4</i><div><h3>WiFi 바꾸기</h3><p><b>▸ WiFi 설정</b> → 이름 · 비밀번호 입력 → <b>[모듈에 쓰기]</b><br>모듈이 재시작하며 새 WiFi로 자동 접속</p></div></li>
@@ -242,6 +295,11 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   const enc = new TextEncoder(), dec = new TextDecoder();
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let port = null, reader = null, writer = null, rxBuf = '', busy = false, readLoopDone = null;
+  /* ★v1.6.0 모듈 교체 대응 (사장 지시 2026-10-21) — LTE 화면과 같은 처리.
+     자동 대기는 두지 않는다. 모듈이 바뀐 것은 '유휴 중에 RX 가 들어왔다'로 안다. */
+  let aborted  = false;   // [중단] 눌림
+  let swapSeen = false;   // 이번 유휴 구간에서 교체 신호를 이미 처리했나
+  let linkedOnce = false; // 한 번이라도 모듈과 통신이 됐었나(교체 판정용)
 
   if(!('serial' in navigator)){ $('noSerial').classList.add('show'); }
 
@@ -289,7 +347,8 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     $('btnConn').textContent = c ? 'COM 연결됨 ✔ · 누르면 해제' : 'COM 연결';   // v1.2.1 같은 버튼으로 연결/해제
     $('btnConn').classList.toggle('on', c);
     $('btnWifi').disabled = !c || busy;
-    if(!c) mark($('btnWifi'), null);
+    $('btnStop').hidden = !busy;                      // ★v1.6.0 실행 중에만 보임
+    if(!c){ mark($('btnWifi'), null); linkedOnce = false; }
     $('btnRead').disabled = !c || busy;
     $('btnWrite').disabled = !c || busy;
     $('btnSend').disabled = !c || busy || !ok;
@@ -307,6 +366,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
           if(done) break;
           const t = dec.decode(value, {stream:true});
           rxBuf += t;
+          if(!busy && t.trim()) onIdleRx();          // ★v1.6.0 안 물어봤는데 온 수신 = 모듈 교체·재부팅
           t.split(/\r?\n/).forEach(s => { if(s.trim()) log('rx', '<< '+s.trim()); });
         }
       }catch(e){ log('er', '수신 오류: '+e.message); break; }
@@ -332,12 +392,37 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     try{ await readLoopDone; }catch(_){}
     try{ if(writer){ writer.releaseLock(); writer = null; } }catch(_){}
     try{ if(p) await p.close(); }catch(_){}
+    clearLink();                                      // ★v1.6.0 찌꺼기 제거
     log('in', '연결 해제'); status('');
     setButtons();
   }
   if('serial' in navigator) navigator.serial.addEventListener('disconnect', e => {
-    if(e.target === port){ log('er','COM 포트가 빠졌습니다'); port=null; writer=null; status('ng','COM 포트가 빠졌습니다'); setButtons(); }
+    if(e.target === port){
+      log('er','COM 포트가 빠졌습니다');
+      const p = port; port = null; writer = null;
+      try{ if(reader) reader.cancel(); }catch(_){}
+      try{ if(p) p.close(); }catch(_){}               // ★v1.6.0 닫아야 다시 꽂았을 때 연결된다
+      clearLink(); status('ng','COM 포트가 빠졌습니다'); setButtons();
+    }
   });
+  /* ★v1.6.0 연결에 딸린 상태를 한자리에서 비운다. */
+  function clearLink(){ rxBuf = ''; swapSeen = false; linkedOnce = false; }
+
+  /* ★v1.6.0 모듈 교체 감지 — 사장 안: "새 모듈로 바꾸면 RX 값이 변한다".
+     모듈은 전원이 들어오면 묻지 않아도 부팅 알림을 스스로 보낸다. 글자 내용은 모듈마다 다르므로
+     **내용은 보지 않고 '유휴 중에 수신이 있었다'는 사실만** 쓴다. 틀려도 손해가 없다
+     (이전 결과를 지우고 다시 누르라고 할 뿐). */
+  function onIdleRx(){
+    if(swapSeen) return;
+    swapSeen = true;
+    const had = linkedOnce;
+    linkedOnce = false;
+    resetSteps(); mark($('btnWifi'), null);
+    log('in', had ? '── 새 모듈 신호 감지 (교체·재부팅) — 이전 결과를 지웠습니다 ──'
+                  : '── 모듈 신호 감지 ──');
+    status('run', had ? '새 모듈이 연결되었습니다' : '모듈 신호가 들어왔습니다',
+      '모듈이 준비되면 <b>[WiFi 연결 확인]</b>을 누르세요. 전원을 막 넣었으면 <b>몇 초</b> 걸립니다.');
+  }
 
   async function tx(text, show){
     log('tx', '>> '+(show || text.replace(/\r\n$/,'')));
@@ -349,17 +434,20 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
       const t0 = Date.now();
       (function poll(){
         for(const p of patterns){ const m = rxBuf.match(p); if(m) return resolve(m); }
-        if(!port || Date.now()-t0 > ms) return resolve(null);
+        if(aborted || !port || Date.now()-t0 > ms) return resolve(null);   // ★v1.6.0 [중단] 즉시 빠져나옴
         setTimeout(poll, 30);
       })();
     });
   }
 
   async function run(fn){
-    if(busy) return; busy = true; setButtons();
-    try{ await fn(); }catch(e){ log('er','오류: '+e.message); status('ng','실행 중 오류', e.message); }
+    if(busy) return;
+    busy = true; aborted = false; swapSeen = false; setButtons();     // ★v1.6.0
+    try{ await fn(); linkedOnce = true; }catch(e){ log('er','오류: '+e.message); status('ng','실행 중 오류', e.message); }
     busy = false; setButtons();
+    if(aborted){ log('in','── 중단했습니다 ──'); status('','중단했습니다','다시 누르면 처음부터 확인합니다.'); }
   }
+  $('btnStop').onclick = () => { if(busy && !aborted){ aborted = true; log('in','중단 요청 — 응답 대기를 끊습니다'); } };
 
   // 버튼 색 — 연결됨 초록 / 안 됨 빨강 / null 이면 원래 색 (v1.3.0 사장 지시)
   function mark(btn, ok){ btn.classList.toggle('ok', ok === true); btn.classList.toggle('ng', ok === false); }

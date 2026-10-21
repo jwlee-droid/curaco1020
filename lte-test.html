@@ -3,6 +3,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CURA1020 LTE 연결 테스트</title>
 <style>
+/* v1.5.0 — 모듈을 바꿔 끼운 뒤 개통 확인이 안 되던 문제 수정 (2026-10-21 사장 시험 보고)
+   · 원인 = 어댑터를 꽂아 둔 채 모듈만 바꾸면 COM 포트가 안 끊겨 **페이지가 교체를 모른다**.
+            게다가 유심·망등록을 각 1회만 보고 즉시 실패 처리해, 갓 전원 들어온 새 모듈이 준비되기 전에 실패했다.
+   · 교체 감지 = **유휴 중 RX 수신**(사장 안 "새 모듈로 바꾸면 RX 값이 변한다").
+            모듈은 전원이 들어오면 스스로 부팅 알림을 보낸다. 글자 내용은 모듈마다 달라 **보지 않고**,
+            '안 물어봤는데 수신이 있었다'는 사실만 쓴다 → 어떤 모듈이든 동작하고 틀려도 손해가 없다.
+   · ★자동 대기(재시도 루프)는 **넣지 않았다**(사장 지시: 매번 1분 기다리는 건 힘들다). 사용자가 다시 누른다.
+   · 실패 원인을 ①모뎀 무응답 ②유심 못 읽음 ③망 등록 안 됨(검색중/거부/미등록) ④데이터 접속 실패 로 나눠 안내.
+   · [■ 중단] 버튼 추가(AT+QIACT=1 은 최대 150초) · 교체 감지 때만 ATE0+QIDEACT 초기화
+   · 연결 해제·포트 빠짐 뒷정리(rxBuf 비움·port.close()) · 사용방법 1번에 도해(SVG)+결선표
+   · 기획 = 03_프로젝트\문서 공유 시스템\기획\기획_LTE테스트_모듈교체오판_사용방법개선_v1.0.0.md */
 /* v1.1.0 — 화면 단순화: 버튼 2개 + 결과 1줄, 설정·통신 기록은 처음에 접힘 (2026-10-20 사장 지시) */
 :root{
   --bg:#eef5fb; --card:#ffffff; --line:#d8e6f2; --ink:#1f3864; --sub:#6b7c90;
@@ -135,7 +146,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.4.1</span>
+  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.5.0</span>
     <button class="help" id="btnHelp" type="button" aria-expanded="false" aria-controls="helpMask">사용방법</button>
     <a class="sw" href="wifi-test.html">WiFi</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
@@ -146,6 +157,8 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
       <button class="go" id="btnSend" disabled>테스트 데이터 전송</button>
       <button class="go2" id="btnOpen" disabled>LTE 개통 확인</button>
     </div>
+    <!-- ★v1.5.0 실행 중에만 보이는 중단 버튼 (개통 확인은 최대 150초까지 걸린다) -->
+    <button id="btnStop" hidden style="width:100%;margin-top:8px;padding:12px;border:0;border-radius:12px;background:#c0392b;color:#fff;font-size:16px;font-weight:700;cursor:pointer">■ 중단</button>
   </div>
   <div class="status" id="status" hidden></div>
   <a class="srv" href="https://crcadm.toksol.com/list_machine.php" target="_blank" rel="noopener">큐라코 서버 ↗</a>
@@ -198,7 +211,55 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
         <div class="mk-f">설정</div><div class="mk-f">통신 기록</div>
       </div>
       <ol class="st">
-        <li><i class="nb">1</i><div><h3>LTE 모듈 연결</h3><p>LM5 · BM5 를 USB-시리얼 어댑터로 PC에 연결 (TTL 3.3V · 115200)</p></div></li>
+        <li><i class="nb">1</i><div><h3>LTE 모듈 연결</h3>
+          <p>모듈(LM5 · BM5)을 <b>USB-시리얼 어댑터</b>에 연결하고, 어댑터를 <b>PC의 USB 단자</b>에 꽂습니다.<br>
+          어댑터는 <b>3.3V 용</b>을 쓰고, 통신 속도는 <b>115200</b> 입니다.</p>
+          <details style="margin-top:7px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:700;color:#2f6f9f">그림으로 보기 — 어떻게 연결하나요?</summary>
+            <div style="margin-top:8px">
+              <!-- ★v1.5.0 도해: 사진 대신 그림. TX↔RX 가 서로 엇갈리는 것이 핵심 -->
+              <svg viewBox="0 0 520 210" style="width:100%;max-width:520px;height:auto;display:block" role="img" aria-label="PC와 USB 시리얼 어댑터, LTE 모듈 연결 그림">
+                <rect x="6" y="54" width="96" height="74" rx="9" fill="#eef4fa" stroke="#9db8d0" stroke-width="1.6"/>
+                <text x="54" y="84" text-anchor="middle" font-size="14" font-weight="700" fill="#1a3b57">PC</text>
+                <text x="54" y="104" text-anchor="middle" font-size="11" fill="#5b7189">USB 단자</text>
+                <rect x="102" y="84" width="34" height="14" rx="3" fill="#cfe0ee" stroke="#9db8d0"/>
+                <rect x="136" y="48" width="132" height="86" rx="9" fill="#fff8e9" stroke="#e0b48a" stroke-width="1.6"/>
+                <text x="202" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#a9631e">USB-시리얼 어댑터</text>
+                <text x="202" y="86" text-anchor="middle" font-size="10.5" fill="#8a6a3a">(USB-TTL 변환기 · 3.3V)</text>
+                <text x="150" y="108" font-size="11" font-weight="700" fill="#33415a">TX</text>
+                <text x="150" y="124" font-size="11" font-weight="700" fill="#33415a">RX</text>
+                <text x="186" y="124" font-size="11" fill="#54627c">GND</text>
+                <circle cx="268" cy="104" r="3.4" fill="#2f8fd6"/><circle cx="268" cy="120" r="3.4" fill="#1e7a4d"/>
+                <rect x="352" y="48" width="162" height="86" rx="9" fill="#eef9f2" stroke="#9ad3b4" stroke-width="1.6"/>
+                <text x="433" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#1e7a4d">LTE 모듈</text>
+                <text x="433" y="86" text-anchor="middle" font-size="10.5" fill="#3f7a5c">LM5 · BM5</text>
+                <text x="362" y="108" font-size="11" font-weight="700" fill="#33415a">RXD</text>
+                <text x="362" y="124" font-size="11" font-weight="700" fill="#33415a">TXD</text>
+                <text x="404" y="124" font-size="11" fill="#54627c">GND</text>
+                <circle cx="352" cy="104" r="3.4" fill="#2f8fd6"/><circle cx="352" cy="120" r="3.4" fill="#1e7a4d"/>
+                <path d="M268 104 C300 104, 320 120, 352 120" fill="none" stroke="#2f8fd6" stroke-width="2.4"/>
+                <path d="M268 120 C300 120, 320 104, 352 104" fill="none" stroke="#1e7a4d" stroke-width="2.4"/>
+                <rect x="276" y="150" width="168" height="22" rx="6" fill="#fdeaea" stroke="#e3a3a3"/>
+                <text x="360" y="165" text-anchor="middle" font-size="11.5" font-weight="700" fill="#c0392b">TX 와 RX 는 서로 엇갈려 연결</text>
+                <text x="140" y="186" font-size="11" fill="#5b7189">GND 끼리도 반드시 연결합니다. 모듈 전원(VCC)은 모듈 규격에 맞춰 주세요.</text>
+              </svg>
+              <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px">
+                <tr style="background:#f2f7fb"><th style="border:1px solid #cfe0ee;padding:5px 7px;text-align:left">어댑터</th><th style="border:1px solid #cfe0ee;padding:5px 7px;text-align:left">모듈 (BM5 · 10핀)</th></tr>
+                <tr><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>TX</b></td><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>4번 RXD</b></td></tr>
+                <tr><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>RX</b></td><td style="border:1px solid #cfe0ee;padding:5px 7px"><b>5번 TXD</b></td></tr>
+                <tr><td style="border:1px solid #cfe0ee;padding:5px 7px">GND</td><td style="border:1px solid #cfe0ee;padding:5px 7px">GND</td></tr>
+              </table>
+              <p style="font-size:12px;color:#8a5a12;background:#fff6e6;border:1px solid #f0c48a;border-radius:8px;padding:7px 9px;margin-top:8px">
+                핀 번호는 <b>BM5 기준</b>입니다(10핀 커넥터). <b>LM5 는 하네스 대조 전이라 아직 확인되지 않았습니다.</b><br>
+                BM5 는 <b>TTL 과 RS232 를 동시에 쓸 수 없습니다</b> — 한쪽만 연결하세요.</p>
+              <p style="font-size:12px;color:#5b7189;margin-top:7px">
+                <b>안 될 때는 여기부터</b> — ① TX·RX 가 바뀌지 않았는지 ② 어댑터가 3.3V 인지 ③ 속도가 115200 인지 ④ 모듈에 전원이 들어왔는지</p>
+            </div>
+          </details>
+        </div></li>
+        <li><i class="nb">!</i><div><h3>모듈을 바꿔 끼울 때</h3><p>새 모듈 신호가 들어오면 화면이 <b>이전 결과를 지우고</b> 알려 줍니다.<br>
+          전원을 막 넣은 모듈은 <b>유심 10~30초 · 망 등록 30초~1분</b> 뒤에 준비됩니다 — 그때 <b>[LTE 개통 확인]</b>을 다시 누르세요.<br>
+          오래 걸리면 <b>[■ 중단]</b> 으로 멈출 수 있습니다.</p></div></li>
         <li><i class="nb">2</i><div><h3>[COM 연결]</h3><p>포트를 고르면 연결 · <b>한 번 더 누르면 해제</b></p></div></li>
         <li><i class="nb">3</i><div><h3>[LTE 개통 확인]</h3><p><span class="g">초록</span> = 개통됨 — IP · 통신사 · IMEI · ICCID 표시<br><span class="r">빨강</span> = 미개통 · 신호 약함 · 유심 문제<br>유심 장착 후 개통까지 <b>1분 ~ 최대 5분</b></p></div></li>
         <li><i class="nb">4</i><div><h3>[테스트 데이터 전송]</h3><p>「✔ 전송 완료」 뒤 <b>[큐라코 서버]</b>에서 시리얼 <b>TS001</b> 행 확인</p></div></li>
@@ -214,6 +275,13 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   const $ = id => document.getElementById(id);
   const enc = new TextEncoder(), dec = new TextDecoder();
   let port = null, reader = null, writer = null, rxBuf = '', busy = false, readLoopDone = null;
+  /* ★v1.5.0 모듈 교체 대응 (사장 지시 2026-10-21)
+     - 자동 대기는 두지 않는다. 기다리는 건 사용자가 버튼으로 한다.
+     - 모듈이 바뀐 것은 '유휴 중에 RX 가 들어왔다'로 안다(모듈은 전원이 들어오면 스스로 알림을 보낸다). */
+  let aborted  = false;   // [중단] 눌림
+  let lastImei = '';      // 직전에 확인된 모듈의 IMEI — 교체 판정
+  let swapSeen = false;   // 이번 유휴 구간에서 교체 신호를 이미 처리했나
+  let needReset = false;  // 다음 실행 앞에서 모듈을 초기화할지(교체됐을 때만)
 
   if(!('serial' in navigator)){ $('noSerial').classList.add('show'); }
 
@@ -267,7 +335,8 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     $('btnCheck').disabled = !c || busy;
     $('btnSend').disabled = !c || busy || !ok;
     $('btnOpen').disabled = !c || busy;
-    if(!c) mark($('btnOpen'), null);
+    $('btnStop').hidden = !busy;                     // ★v1.5.0 실행 중에만 보임
+    if(!c){ mark($('btnOpen'), null); lastImei = ''; }
     if(!ok && !busy) status('ng','설정 값을 확인하세요','설정 › 빨간 칸');
     else if(ok && $('status').dataset.cfg) status('', c ? '연결됨 — 전송 버튼을 누르세요' : 'COM 포트를 연결하세요');
     $('status').dataset.cfg = (!ok && !busy) ? '1' : '';
@@ -281,6 +350,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
           if(done) break;
           const t = dec.decode(value, {stream:true});
           rxBuf += t;
+          if(!busy && t.trim()) onIdleRx();          // ★v1.5.0 안 물어봤는데 온 수신 = 모듈이 새로 붙었거나 재부팅됨
           t.split(/\r?\n/).forEach(s => { if(s.trim()) log('rx', '<< '+s.trim()); });
         }
       }catch(e){ log('er', '수신 오류: '+e.message); break; }
@@ -306,12 +376,38 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     try{ await readLoopDone; }catch(_){}
     try{ if(writer){ writer.releaseLock(); writer = null; } }catch(_){}
     try{ if(p) await p.close(); }catch(_){}
+    clearLink();                                      // ★v1.5.0 찌꺼기 제거(안 지우면 다음 모듈 판정에 섞인다)
     log('in', '연결 해제'); status('', 'COM 포트를 연결하세요');
     setButtons();
   }
   if('serial' in navigator) navigator.serial.addEventListener('disconnect', e => {
-    if(e.target === port){ log('er','COM 포트가 빠졌습니다'); port=null; writer=null; status('ng','COM 포트가 빠졌습니다'); setButtons(); }
+    if(e.target === port){
+      log('er','COM 포트가 빠졌습니다');
+      const p = port; port = null; writer = null;
+      try{ if(reader) reader.cancel(); }catch(_){}
+      try{ if(p) p.close(); }catch(_){}               // ★v1.5.0 닫아야 다시 꽂았을 때 연결된다
+      clearLink(); status('ng','COM 포트가 빠졌습니다'); setButtons();
+    }
   });
+  /* ★v1.5.0 연결에 딸린 상태를 한자리에서 비운다. */
+  function clearLink(){ rxBuf = ''; lastImei = ''; swapSeen = false; needReset = false; }
+
+  /* ★v1.5.0 모듈 교체 감지 — 사장 안: "새 모듈로 바꾸면 RX 값이 변한다".
+     모듈은 전원이 들어오면 묻지 않아도 부팅 알림을 스스로 보낸다. 그 글자가 무엇인지는
+     모듈마다 다르므로 **내용은 보지 않고 '유휴 중에 수신이 있었다'는 사실만** 쓴다.
+     → 어떤 모듈을 끼워도 동작하고, 틀려도 손해가 없다(이전 결과를 지우고 다시 누르라고 할 뿐). */
+  function onIdleRx(){
+    if(swapSeen) return;
+    swapSeen = true;
+    const had = !!lastImei;          // 쓰던 모듈이 있었는데 새 신호가 왔다 = 교체·재부팅
+    if(had) needReset = true;
+    lastImei = '';
+    resetSteps(); mark($('btnOpen'), null);
+    log('in', had ? '── 새 모듈 신호 감지 (교체·재부팅) — 이전 결과를 지웠습니다 ──'
+                  : '── 모듈 신호 감지 ──');
+    status('run', had ? '새 모듈이 연결되었습니다' : '모듈 신호가 들어왔습니다',
+      '모듈이 준비되면 <b>[LTE 개통 확인]</b>을 누르세요.<br>전원을 막 넣었으면 <b>유심 10~30초 · 망 등록 30초~1분</b> 걸립니다.');
+  }
 
   async function tx(text, show){
     log('tx', '>> '+(show || text.replace(/\r\n$/,'')));
@@ -323,7 +419,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
       const t0 = Date.now();
       (function poll(){
         for(const p of patterns){ const m = rxBuf.match(p); if(m) return resolve(m); }
-        if(!port || Date.now()-t0 > ms) return resolve(null);
+        if(aborted || !port || Date.now()-t0 > ms) return resolve(null);   // ★v1.5.0 [중단] 즉시 빠져나옴
         setTimeout(poll, 30);
       })();
     });
@@ -334,17 +430,47 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     return waitFor(patterns || [/\r\nOK\r\n|^OK\r\n/m, /ERROR/], ms || 3000);
   }
 
+  /* ★v1.5.0 — 자동으로 기다리지 않는다(사장 지시). 대신 **왜 실패했는지와 지금 뭘 할지**를 알려 주고,
+     사용자가 버튼을 다시 눌러 확인하게 한다. */
+  const AGAIN = '<br><b>[LTE 개통 확인]</b>을 다시 누르면 처음부터 확인합니다.';
+
+  /* ★v1.5.0 모듈이 바뀐 게 감지됐을 때만 깨끗이 되돌린다(평소엔 건너뛰어 시간을 안 뺏는다). */
+  async function prep(){
+    if(!needReset) return;
+    needReset = false; swapSeen = false;
+    status('run','새 모듈 초기화 중…');
+    await at('ATE0', 2000);
+    await at('AT+QIDEACT=1', 10000);    // 이전 모듈이 켜 둔 데이터 접속 해제. 실패해도 그냥 진행
+    rxBuf = '';
+  }
+
   // ── 상태 확인: 응답 · 유심 · 신호 · 망 등록 ──
   async function check(){
     status('run','모뎀 확인 중…');
     let m = await at('AT', 2000);
     if(!m || /ERROR/.test(m[0])) m = await at('AT', 2000);        // 첫 바이트 유실 대비 1회 재시도
-    if(!m || /ERROR/.test(m[0])){ step('at','ng','응답 없음'); status('ng','모뎀 응답 없음','배선·전원·통신 속도·COM 번호 확인'); return false; }
+    if(aborted) return false;
+    if(!m || /ERROR/.test(m[0])){
+      step('at','ng','응답 없음');
+      status('ng','① 모뎀이 응답하지 않습니다',
+        '보낸 글자가 모듈까지 못 갔습니다. <b>TX·RX 가 서로 바뀌지 않았는지</b>를 먼저 보세요.'
+        +'<br>그 다음 — 어댑터 전압(<b>3.3V</b>) · 통신 속도(<b>115200</b>) · COM 번호 · 모듈 전원.'+AGAIN);
+      return false;
+    }
     step('at','ok','정상');
 
     status('run','유심 확인 중…');
     m = await at('AT+CPIN?', 5000, [/\+CPIN:\s*([^\r\n]+)/, /ERROR/]);
-    if(!m || !/READY/.test(m[0])){ step('sim','ng', m ? (m[1]||'오류') : '응답 없음'); status('ng','유심 인식 안 됨','유심 장착·개통 확인'); return false; }
+    if(aborted) return false;
+    const pin = (m && m[1]) ? m[1].trim() : '';
+    if(!m || !/READY/.test(m[0])){
+      step('sim','ng', pin || '응답 없음');
+      status('ng','② 유심을 아직 못 읽었습니다',
+        (pin ? '모뎀 응답: <b>'+pin+'</b><br>' : '')
+        +'전원을 막 넣었으면 <b>유심 인식에 10~30초</b> 걸립니다. 잠시 뒤 다시 누르세요.'
+        +'<br>계속 같으면 — 유심 방향·접촉·개통 상태를 보세요.'+AGAIN);
+      return false;
+    }
     step('sim','ok','READY');
 
     m = await at('AT+CSQ', 3000, [/\+CSQ:\s*(\d+),/, /ERROR/]);
@@ -354,19 +480,29 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
 
     status('run','망 등록 확인 중…');
     m = await at('AT+CEREG?', 3000, [/\+CEREG:\s*\d+,(\d+)/, /ERROR/]);
+    if(aborted) return false;
     const st = m && m[1];
     const regTxt = {'1':'홈','5':'로밍','2':'검색 중','0':'미등록','3':'거부'}[st] || '확인 불가';
     if(st === '1' || st === '5'){ step('reg','ok',regTxt); return true; }
     step('reg','ng',regTxt);
-    status('ng','망 등록 안 됨', st === '2' ? '전원 직후면 1분 뒤 다시' : st === '3' ? '통신사가 거부 — 미개통·정지 가능성' : '유심 개통·안테나 확인');
+    const why =
+      st === '2' ? '통신사 망을 <b>찾는 중</b>입니다. 전원을 막 넣었으면 <b>30초~1분</b> 걸립니다. 잠시 뒤 다시 누르세요.'
+    : st === '3' ? '통신사가 등록을 <b>거부</b>했습니다. <b>유심 미개통·정지·요금 미납</b> 가능성이 큽니다.'
+    : st === '0' ? '망에 등록되지 않았습니다. <b>안테나 연결</b>과 유심 개통을 확인하세요.'
+    :              '등록 상태를 읽지 못했습니다. 잠시 뒤 다시 누르세요.';
+    status('ng','③ 망 등록 안 됨 ('+regTxt+')',
+      why + (rssi !== 99 && rssi < 10 ? '<br>신호도 약합니다(<b>'+rssi+'/31</b>) — 안테나를 확인하세요.' : '') + AGAIN);
     return false;
   }
 
   async function run(fn){
-    if(busy) return; busy = true; setButtons();
+    if(busy) return;
+    busy = true; aborted = false; swapSeen = false; setButtons();     // ★v1.5.0
     try{ await fn(); }catch(e){ log('er','오류: '+e.message); status('ng','실행 중 오류', e.message); }
     busy = false; setButtons();
+    if(aborted){ log('in','── 중단했습니다 ──'); status('','중단했습니다','다시 누르면 처음부터 확인합니다.'); }
   }
+  $('btnStop').onclick = () => { if(busy && !aborted){ aborted = true; log('in','중단 요청 — 응답 대기를 끊습니다'); } };
 
   $('btnCheck').onclick = () => run(async () => {
     resetSteps(); log('in','── 모뎀 상태 확인 ──');
@@ -379,12 +515,17 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   // ── LTE 개통 확인: 유심 READY + 망 등록 + 데이터 접속(IP 받음) = 개통. 서버로는 아무것도 보내지 않는다 ──
   $('btnOpen').onclick = () => run(async () => {
     resetSteps(); mark($('btnOpen'), null); log('in','── LTE 개통 확인 ──');
-    if(!(await check())){ mark($('btnOpen'), false); return; }
+    await prep();                                              // ★v1.5.0 교체가 감지됐을 때만 초기화
+    if(!(await check())){ if(!aborted) mark($('btnOpen'), false); return; }
 
     // 식별 정보 — 개통 서류(모뎀·유심 일련번호) 대조용. 명령이 모듈마다 달라 순서대로 시도
     status('run','모뎀·유심 정보 읽는 중…');
     let r = await at('AT+CGSN', 3000, [/(\d{15})/, /ERROR/]);
     const imei = r && r[1] ? r[1] : '';
+    if(imei){                                                  // ★v1.5.0 모듈이 바뀌었으면 기록에 남긴다
+      if(lastImei && imei !== lastImei) log('in','── 모듈이 바뀌었습니다 (IMEI '+lastImei+' → '+imei+') ──');
+      lastImei = imei;
+    }
     let iccid = '';
     for(const c of ['AT+QCCID','AT+CCID','AT+ICCID']){
       r = await at(c, 3000, [/(89\d{16,18}[0-9A-F]?)/i, /ERROR/]);
@@ -406,7 +547,10 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     const info = [op, imei && 'IMEI '+imei, iccid && 'ICCID '+iccid].filter(Boolean).join(' · ');
     if(!ip){
       step('pdp','ng','IP 없음'); mark($('btnOpen'), false);
-      status('ng','✖ 데이터 접속 안 됨 — 개통 미완료 가능', '유심·망은 정상, 데이터 요금제·APN 확인'+(info?'<br>'+info:''));
+      status('ng','④ 데이터 접속이 안 됩니다 — 개통 미완료로 보입니다',
+        '유심 인식과 망 등록은 <b>정상</b>인데 IP 를 못 받았습니다.'
+        +'<br>→ <b>데이터 요금제가 들어간 유심인지</b> · APN 설정을 확인하세요.'
+        +(info?'<br>'+info:'')+AGAIN);
       return;
     }
     step('pdp','ok','IP 받음'); mark($('btnOpen'), true);
