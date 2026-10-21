@@ -142,7 +142,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.5.1</span>
+  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.5.2</span>
     <button class="help" id="btnHelp" type="button" aria-expanded="false" aria-controls="helpMask">사용방법</button>
     <a class="sw" href="lte-test.html">LTE</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
@@ -189,7 +189,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
       <div class="grid">
         <div class="f"><label for="sn">시리얼</label><input id="sn" value="TS001" maxlength="5"></div>
         <div class="f"><label for="baud">통신 속도</label>
-          <select id="baud"><option>9600</option><option>115200</option><option>57600</option><option>38400</option><option>19200</option></select></div>
+          <select id="baud"><option>115200</option><option>9600</option><option>57600</option><option>38400</option><option>19200</option></select></div>
         <div class="f"><label for="err">에러코드 E</label><input id="err" value="00" maxlength="2"></div>
       </div>
       <div class="pkt" id="pktTxt"></div>
@@ -224,7 +224,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
         <div class="mk-f"><i class="nb">4</i>WiFi 설정</div><div class="mk-f">설정</div><div class="mk-f">통신 기록</div>
       </div>
       <ol class="st">
-        <li><i class="nb">1</i><div><h3>JSN1000 연결</h3><p><b>5V 대응</b> USB-시리얼 어댑터 · 9600<br>노랑 TXD→어댑터 RX · 주황 RXD→어댑터 TX · 빨강 5V · 검정 GND</p></div></li>
+        <li><i class="nb">1</i><div><h3>JSN1000 연결</h3><p><b>5V 대응</b> USB-시리얼 어댑터 · 115200<br>노랑 TXD→어댑터 RX · 주황 RXD→어댑터 TX · 빨강 5V · 검정 GND</p></div></li>
         <li><i class="nb">2</i><div><h3>[COM 연결]</h3><p>저장된 <b>WiFi 이름 · 비밀번호</b>를 자동으로 불러옴 · 한 번 더 누르면 해제</p></div></li>
         <li><i class="nb">3</i><div><h3>[WiFi 연결 확인]</h3><p><span class="g">초록</span> = 연결됨 — IP · 신호 · 서버 소켓 표시<br><span class="r">빨강</span> = 연결 안 됨</p></div></li>
         <li><i class="nb">4</i><div><h3>WiFi 바꾸기</h3><p><b>▸ WiFi 설정</b> → 이름 · 비밀번호 입력 → <b>[모듈에 쓰기]</b><br>모듈이 재시작하며 새 WiFi로 자동 접속</p></div></li>
@@ -411,7 +411,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   //   이전 판은 \r\n · '+++'(CR 없음)이라 모듈이 응답하지 않았음. OK·ERROR 둘 다 '통신됨'으로 본다.
   // v1.2.2 — 명령 모드 진입을 AT 의 OK 로 확인한다(+++ 자체는 응답이 없을 수 있음)
   //   ① 이미 명령 모드면 AT 에 OK  ② 아니면 +++ (앞뒤 1.1초 무입력) 후 AT
-  //   ③ 그래도 없으면 통신 속도를 바꿔 다시 시도 (모듈 속도가 9600 이 아닐 수 있음)
+  //   ③ 그래도 없으면 통신 속도를 바꿔 다시 시도 (v1.5.2 기본 115200 — 모듈 속도가 다를 수 있음)
   // v1.4.0 — 매뉴얼 p.19: 데이터 모드에서 '+++' → [OK]. ★'at' 를 먼저 보내지 않는다 —
   //   데이터 모드면 'at' 가 그대로 운영 서버로 전송돼 패킷 앞에 붙는다(실측 'Sat+q' 같은 깨진 행 원인 가능).
   //   이미 명령 모드면 '+++' 는 [ERROR:INVALID COMMAND] 로 응답 → 이것도 '통신됨'.
@@ -439,7 +439,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     lastRx = '';
     if(await tryCmd()) return true;
     const first = +$('baud').value;
-    for(const b of [9600, 115200, 57600, 38400, 19200]){
+    for(const b of [115200, 9600, 57600, 38400, 19200]){
       if(b === first) continue;
       status('run', '응답 없음 — 통신 속도 '+b+' 로 시도 중…');
       await reopen(b);
