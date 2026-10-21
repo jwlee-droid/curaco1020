@@ -84,6 +84,44 @@ input.bad{border-color:var(--fail)}
      border-radius:8px;padding:8px 10px;height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all}
 #log .tx{color:#7cc4f5}#log .rx{color:#c9f0c9}#log .er{color:#ff9d9d}#log .in{color:#f5d27c}
 @media(max-width:480px){.panel{padding:0 16px 16px}.grid{grid-template-columns:1fr}}
+/* ── 사용방법 팝업 (2026-10-21 · PDF 사용방법 v1.1.0 을 HTML 로) ── */
+.top .help{margin-left:auto;font-size:13px;font-weight:700;color:var(--sky-d);background:#fff;
+  border:1.5px solid var(--sky);border-radius:20px;padding:4px 14px;width:auto;cursor:pointer}
+.top .help:hover{background:var(--sky-l)}
+.top .help + .sw{margin-left:8px}
+.hm-mask{position:fixed;inset:0;background:rgba(15,31,51,.45);display:none;align-items:flex-start;justify-content:center;
+  z-index:500;padding:28px 12px;overflow:auto}
+.hm-mask.show{display:flex}
+.hm{background:#fff;border-radius:16px;max-width:820px;width:100%;padding:18px 22px 22px;box-shadow:0 10px 40px rgba(15,31,51,.25)}
+.hm-head{display:flex;align-items:center;border-bottom:3px solid var(--sky);padding-bottom:10px;margin-bottom:16px}
+.hm-head h2{font-size:19px;margin:0}
+.hm-x{margin-left:auto;width:36px;height:36px;border-radius:50%;background:#f1f5f9;color:var(--sub);font-size:18px;padding:0}
+.hm-x:hover{background:#e2e8f0}
+.hm-body{display:grid;grid-template-columns:250px 1fr;gap:24px;align-items:start}
+.mk{background:#f4f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px 18px}
+.mk-t{display:flex;align-items:center;font-size:13px;font-weight:700;margin-bottom:12px}
+.mk-t span{margin-left:auto;font-size:11px;color:var(--sky-d);border:1.5px solid var(--sky);border-radius:20px;padding:1px 9px}
+.mk-b{position:relative;border-radius:8px;padding:9px 15px;text-align:center;font-size:12.5px;font-weight:700;margin-bottom:8px;
+  background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.mk-b.blue{background:var(--sky);border-color:var(--sky);color:#fff}
+.mk-b.green{background:var(--ok);border-color:var(--ok);color:#fff}
+.mk-b.line{border-color:var(--sky);color:var(--sky-d)}
+.mk-r{display:grid;grid-template-columns:3fr 2fr;gap:6px}
+.mk-f{position:relative;font-size:12px;color:var(--sub);padding:3px 0 3px 14px}
+.mk-f::before{content:'▸ ';color:var(--sky)}
+.nb{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;font-weight:700;
+  align-items:center;justify-content:center;flex:0 0 22px}
+.mk .nb{position:absolute;top:50%;transform:translateY(-50%);left:-13px}
+.mk .nb.r{left:auto;right:-13px}
+.st{list-style:none;margin:0;padding:0}
+.st li{display:flex;gap:12px;margin-bottom:15px}
+.st li:last-child{margin-bottom:0}
+.st h3{font-size:15px;margin:1px 0 3px}
+.st p{font-size:13px;color:#3a4a60;margin:0;line-height:1.6}
+.st .g{color:var(--ok);font-weight:700}.st .r{color:var(--fail);font-weight:700}.st .y{color:#a86a0c;font-weight:700}
+.hm-note{margin-top:18px;background:#fff6e5;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#5a4a2a;line-height:1.6}
+.hm-note b{color:#a86a0c;margin-right:6px}
+@media(max-width:640px){.hm-body{grid-template-columns:1fr}.mk{max-width:280px;margin:0 auto}}
 </style></head>
 <body>
 <!-- ★비밀번호 게이트 (비번·ON/OFF는 config.js 에서 관리 — index.html 과 같음) -->
@@ -99,7 +137,8 @@ input.bad{border-color:var(--fail)}
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.4.0</span>
+  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.5.0</span>
+    <button class="help" id="btnHelp" type="button">사용방법</button>
     <a class="sw" href="lte-test.html">LTE</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
 
@@ -166,6 +205,31 @@ input.bad{border-color:var(--fail)}
     </div>
   </details>
 </main>
+
+<!-- ── 사용방법 팝업 (WiFi) ── -->
+<div class="hm-mask" id="helpMask" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="hm">
+    <div class="hm-head"><h2 id="helpTitle">사용방법 — WiFi 연결 테스트</h2><button class="hm-x" id="helpX" aria-label="닫기">✕</button></div>
+    <div class="hm-body">
+      <div class="mk" aria-hidden="true">
+        <div class="mk-t">WiFi 연결 테스트<span>LTE</span></div>
+        <div class="mk-b"><i class="nb">2</i>COM 연결</div>
+        <div class="mk-r"><div class="mk-b blue"><i class="nb">5</i>테스트 데이터 전송</div><div class="mk-b green">WiFi 연결 확인<i class="nb r">3</i></div></div>
+        <div class="mk-b line">큐라코 서버 ↗</div>
+        <div class="mk-f"><i class="nb">4</i>WiFi 설정</div><div class="mk-f">설정</div><div class="mk-f">통신 기록</div>
+      </div>
+      <ol class="st">
+        <li><i class="nb">1</i><div><h3>JSN1000 연결</h3><p><b>5V 대응</b> USB-시리얼 어댑터 · 9600<br>노랑 TXD→어댑터 RX · 주황 RXD→어댑터 TX · 빨강 5V · 검정 GND</p></div></li>
+        <li><i class="nb">2</i><div><h3>[COM 연결]</h3><p>저장된 <b>WiFi 이름 · 비밀번호</b>를 자동으로 불러옴 · 한 번 더 누르면 해제</p></div></li>
+        <li><i class="nb">3</i><div><h3>[WiFi 연결 확인]</h3><p><span class="g">초록</span> = 연결됨 — IP · 신호 · 서버 소켓 표시<br><span class="r">빨강</span> = 연결 안 됨</p></div></li>
+        <li><i class="nb">4</i><div><h3>WiFi 바꾸기</h3><p><b>▸ WiFi 설정</b> → 이름 · 비밀번호 입력 → <b>[모듈에 쓰기]</b><br>모듈이 재시작하며 새 WiFi로 자동 접속</p></div></li>
+        <li><i class="nb">5</i><div><h3>[테스트 데이터 전송]</h3><p><span class="y">노랑</span> 「도착 미확인」 → <b>[큐라코 서버]</b>에서 <b>TS001</b> 행 확인</p></div></li>
+      </ol>
+    </div>
+    <div class="hm-note"><b>주의</b>2.4GHz 공유기만 됩니다 · 모듈은 5V 신호 — 3.3V 전용 어댑터 금지 · 운영 서버로 실제 전송</div>
+  </div>
+</div>
+
 
 <script>
 (function(){
@@ -479,6 +543,18 @@ input.bad{border-color:var(--fail)}
   });
 
   setButtons();
+})();
+</script>
+<script>
+/* 사용방법 팝업 — 열기 [사용방법] · 닫기 ✕ / 바깥 클릭 / Esc */
+(function(){
+  var m = document.getElementById('helpMask');
+  function open(){ m.classList.add('show'); document.getElementById('helpX').focus(); }
+  function close(){ m.classList.remove('show'); document.getElementById('btnHelp').focus(); }
+  document.getElementById('btnHelp').addEventListener('click', open);
+  document.getElementById('helpX').addEventListener('click', close);
+  m.addEventListener('click', function(e){ if(e.target === m) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && m.classList.contains('show')) close(); });
 })();
 </script>
 <script src="config.js"></script>
