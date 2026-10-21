@@ -89,15 +89,21 @@ input.bad{border-color:var(--fail)}
   border:1.5px solid var(--sky);border-radius:20px;padding:4px 14px;width:auto;cursor:pointer}
 .top .help:hover{background:var(--sky-l)}
 .top .help + .sw{margin-left:8px}
-.hm-mask{position:fixed;inset:0;background:rgba(15,31,51,.45);display:none;align-items:flex-start;justify-content:center;
-  z-index:500;padding:28px 12px;overflow:auto}
-.hm-mask.show{display:flex}
-.hm{background:#fff;border-radius:16px;max-width:820px;width:100%;padding:18px 22px 22px;box-shadow:0 10px 40px rgba(15,31,51,.25)}
+/* v1.4.1 — 덮는 팝업 대신 본 화면 오른쪽 옆 패널. 좁은 화면이면 아래로 내려감(flex-wrap) */
+body{flex-wrap:wrap;gap:20px;align-items:flex-start}
+.hm-mask{display:none;width:440px;max-width:100%;position:sticky;top:28px}
+.hm-mask.show{display:block;animation:hmIn .22s ease-out}
+@keyframes hmIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+.top .help::after{content:' ▸'}
+.top .help.on::after{content:' ◂'}
+.top .help.on{background:var(--sky);color:#fff}
+.hm{background:#fff;border:1px solid var(--line);border-radius:16px;width:100%;padding:16px 20px 20px;box-shadow:0 2px 14px rgba(31,56,100,.07)}
 .hm-head{display:flex;align-items:center;border-bottom:3px solid var(--sky);padding-bottom:10px;margin-bottom:16px}
 .hm-head h2{font-size:19px;margin:0}
 .hm-x{margin-left:auto;width:36px;height:36px;border-radius:50%;background:#f1f5f9;color:var(--sub);font-size:18px;padding:0}
 .hm-x:hover{background:#e2e8f0}
-.hm-body{display:grid;grid-template-columns:250px 1fr;gap:24px;align-items:start}
+.hm-body{display:grid;grid-template-columns:1fr;gap:18px}
+.hm-body .mk{width:100%;max-width:280px;margin:0 auto}
 .mk{background:#f4f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px 18px}
 .mk-t{display:flex;align-items:center;font-size:13px;font-weight:700;margin-bottom:12px}
 .mk-t span{margin-left:auto;font-size:11px;color:var(--sky-d);border:1.5px solid var(--sky);border-radius:20px;padding:1px 9px}
@@ -121,7 +127,6 @@ input.bad{border-color:var(--fail)}
 .st .g{color:var(--ok);font-weight:700}.st .r{color:var(--fail);font-weight:700}.st .y{color:#a86a0c;font-weight:700}
 .hm-note{margin-top:18px;background:#fff6e5;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#5a4a2a;line-height:1.6}
 .hm-note b{color:#a86a0c;margin-right:6px}
-@media(max-width:640px){.hm-body{grid-template-columns:1fr}.mk{max-width:280px;margin:0 auto}}
 </style></head>
 <body>
 <!-- ★비밀번호 게이트 (비번·ON/OFF는 config.js 에서 관리 — index.html 과 같음) -->
@@ -137,8 +142,8 @@ input.bad{border-color:var(--fail)}
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.5.0</span>
-    <button class="help" id="btnHelp" type="button">사용방법</button>
+  <div class="top"><h1>WiFi 연결 테스트</h1><span class="ver">v1.5.1</span>
+    <button class="help" id="btnHelp" type="button" aria-expanded="false" aria-controls="helpMask">사용방법</button>
     <a class="sw" href="lte-test.html">LTE</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
 
@@ -207,7 +212,7 @@ input.bad{border-color:var(--fail)}
 </main>
 
 <!-- ── 사용방법 팝업 (WiFi) ── -->
-<div class="hm-mask" id="helpMask" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+<div class="hm-mask" id="helpMask" role="complementary" aria-labelledby="helpTitle">
   <div class="hm">
     <div class="hm-head"><h2 id="helpTitle">사용방법 — WiFi 연결 테스트</h2><button class="hm-x" id="helpX" aria-label="닫기">✕</button></div>
     <div class="hm-body">
@@ -546,15 +551,16 @@ input.bad{border-color:var(--fail)}
 })();
 </script>
 <script>
-/* 사용방법 팝업 — 열기 [사용방법] · 닫기 ✕ / 바깥 클릭 / Esc */
+/* 사용방법 옆 패널 — [사용방법] 누르면 열고/닫기 · ✕ · Esc */
 (function(){
   var m = document.getElementById('helpMask');
-  function open(){ m.classList.add('show'); document.getElementById('helpX').focus(); }
-  function close(){ m.classList.remove('show'); document.getElementById('btnHelp').focus(); }
-  document.getElementById('btnHelp').addEventListener('click', open);
-  document.getElementById('helpX').addEventListener('click', close);
-  m.addEventListener('click', function(e){ if(e.target === m) close(); });
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && m.classList.contains('show')) close(); });
+  var b = document.getElementById('btnHelp');
+  function set(on){ m.classList.toggle('show', on); b.classList.toggle('on', on); b.setAttribute('aria-expanded', on);
+    // 좁은 화면이면 패널이 아래로 내려가므로 그 자리로 스크롤
+    if(on && m.getBoundingClientRect().top > window.innerHeight * 0.6) m.scrollIntoView({ behavior:'smooth', block:'start' }); }
+  b.addEventListener('click', function(){ set(!m.classList.contains('show')); });
+  document.getElementById('helpX').addEventListener('click', function(){ set(false); b.focus(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && m.classList.contains('show')){ set(false); b.focus(); } });
 })();
 </script>
 <script src="config.js"></script>
