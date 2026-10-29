@@ -3,6 +3,35 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CURA1020 LTE 연결 테스트</title>
 <style>
+/* v1.12.0 — 구글 시트 탭 2개(기록·제품넘버)에 맞춤 (2026-10-29 사장 지시): 버튼 [기록 CSV]·[제품넘버 CSV]. 서버 v1.3.0 이
+   '제품넘버' 탭(IMEI 1개당 1행, 확인마다 덮어씀)을 직접 관리. 기기 차단 탭 없음 → 전체 기기 끊기 = 비밀번호(PW) 변경 */
+/* v1.11.0 — 클라우드 CSV 2종 (2026-10-29 사장 지시): [이력 CSV (확인할 때마다)] = 개통 확인 1회 = 1행 누적 · [IMEI별 마지막 CSV] = IMEI 1개당 마지막 확인 1행(서버 v1.2.0 mode=last). 둘 다 시작·종료일 범위 안에서 */
+/* v1.10.0 — 제품번호 전부 삭제 (2026-10-29 사장 지시 "제품번호는 알 수 없으니 모두 삭제"): 입력칸·개통 기록 표·이력/현황 CSV·
+   클라우드 CSV 검색칸에서 제외. 서버(Apps Script v1.2.0)는 CSV 에서 제품번호 열 제외(시트 열은 옛 행 정렬용으로 남김) */
+/* v1.9.0 — 화면 재구성 (2026-10-29 사장 지시): 클라우드 상태 줄을 상단(결과 줄 아래)으로 · 「큐라코 서버」 바로 아래 클라우드 CSV 내려받기
+   · 시작일·종료일 기본 = 오늘 · [미전송 다시 보내기]·[브라우저 기록 전부 올리기] 삭제 → 자동(열 때·새 기록·인터넷 복구·로그인 때 전부 올림)
+   · 「클라우드 저장」 접힘 칸 삭제, 로그인/로그아웃은 상태 줄 오른쪽 작은 버튼 */
+/* v1.8.0 — 로그인 통일 (2026-10-29 사장 지시 "①방식 + 비밀번호 통일"): 처음 열 때 로그인 화면 비밀번호 1개를
+   Apps Script(v1.1.0, 스크립트 속성 PW)가 확인 → 기기 토큰 기억 → 이후 열기·저장·CSV 내려받기 전부 자동.
+   · 등록 비밀번호·내려받기 비밀번호·서버 주소 칸 삭제. 옛 config.js 해시 잠금(GitHub본)을 대체 — 페이지에 비밀번호 흔적 없음.
+   · github.io 는 로그인 필수, 사내 8443 은 [클라우드 저장 없이 사용] 허용(포털 로그인이 따로 있음). 인터넷 끊김 = 그대로 사용·미전송 누적 */
+/* v1.7.4 — 기기 이름 입력칸 삭제(사장 지시 10-29). 등록 = 등록 비밀번호만. 이름은 자동 생성해 서버에만 보냄 */
+/* v1.7.3 — 기기 이름 자동 채움(작업자 + OS + 브라우저 + 등록 시각, 고칠 수 있음). PC 이름은 브라우저가 알려 주지 않는다 */
+/* v1.7.2 — 서버 주소 기본값 = 회사 계정에 배포한 「CURA LTE 개통 기록 서버」 웹 앱(2026-10-29 배포 v1). 주소는 비밀이 아님(비밀번호는 서버가 확인) */
+/* v1.7.1 — 기기 등록 안 됨 대응 (2026-10-29 사장 보고): 회사(Workspace) 계정 웹 앱 주소 …/a/macros/<도메인>/s/…/exec 를
+   형식 오류로 막던 것 수정 · 주소 뒤 ?… 자동 제거 · 실패 사유를 원인별로(액세스 권한·JSON 아님·주소) 표시 */
+/* v1.7.0 — 클라우드 저장: 개통 기록을 구글 시트(Apps Script)에도 1행씩 보내고, CSV 로 다시 내려받는다 (2026-10-29 사장 지시)
+   · 비밀번호는 이 페이지에 없다 — **Apps Script 가 확인**(등록 비밀번호·내려받기 비밀번호 따로).
+   · 기기 등록 = 등록 비밀번호 1회 → 기기 전용 토큰을 이 브라우저에 보관 → 이후 저장은 자동. 차단은 시트 '기기' 탭에서.
+   · 못 보낸 기록은 '미전송' 으로 쌓아 두고 다음 확인·페이지 열 때·[다시 보내기] 로 재전송(같은 기록ID 는 서버가 건너뜀).
+   · 브라우저 장부(v1.6.0)는 그대로 — 클라우드는 사본. 서버 코드 = 03_프로젝트\문서 공유 시스템\도구\LTE개통기록_AppsScript_v1.0.0.gs */
+/* v1.6.0 — 개통 기록 장부: [LTE 개통 확인] 1회 = 1행, 이 브라우저에 누적 + CSV 내려받기 (2026-10-29 사장 지시)
+   · 요구 = "제품번호·칩 번호·마지막 개통일을 CSV 로 계속 누적" → 서버 없이 **브라우저 누적 + 내려받기** 방식으로 구현.
+   · 기록 시점 = 성공·실패 **모두** 1행(실패는 사유까지). [■ 중단] 으로 끊은 것은 기록하지 않는다.
+   · 제품번호·작업자는 **화면 입력값** — 모듈은 AT 로 제품번호를 주지 않는다(IMEI·ICCID·모델까지만). 입력값은 다음에도 남는다.
+   · [이력 CSV] = 확인 1회 = 1행 전체 / [현황 CSV] = IMEI 당 1행(**마지막 개통 확인일**·횟수).
+   · 서버로는 여전히 **아무것도 보내지 않는다**(정적 사이트). 기록은 이 PC·이 브라우저에만 남으므로 작업 끝에 내려받아 보관.
+   · 모델명 조회 AT+CGMM 1회 추가(실패해도 빈칸으로 진행) */
 /* v1.5.0 — 모듈을 바꿔 끼운 뒤 개통 확인이 안 되던 문제 수정 (2026-10-21 사장 시험 보고)
    · 원인 = 어댑터를 꽂아 둔 채 모듈만 바꾸면 COM 포트가 안 끊겨 **페이지가 교체를 모른다**.
             게다가 유심·망등록을 각 1회만 보고 즉시 실패 처리해, 갓 전원 들어온 새 모듈이 준비되기 전에 실패했다.
@@ -77,6 +106,43 @@ input.bad{border-color:var(--fail)}
 .pkt{font-family:Consolas,monospace;font-size:12px;background:#f6f9fc;border-radius:8px;padding:8px 10px;
      word-break:break-all;margin-top:10px;color:#2a4a6e}
 .small{background:#fff;color:var(--ink);border:1.5px solid var(--line);padding:9px;font-size:14px;margin-top:10px}
+/* ★v1.6.0 개통 기록 장부 */
+.idrow{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px}   /* v1.10.0 제품번호 삭제 → 작업자만 */
+.lg-wrap{max-height:208px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+table.lg{width:100%;border-collapse:collapse;font-size:12px}
+table.lg th{position:sticky;top:0;background:#f2f7fb;color:var(--sub);font-size:11px;font-weight:600;
+  padding:5px 7px;text-align:left;border-bottom:1px solid var(--line)}
+table.lg td{padding:5px 7px;border-bottom:1px solid #eef3f8;white-space:nowrap}
+table.lg td.mono{font-family:Consolas,monospace;font-size:11.5px}
+table.lg td.v-ok{color:var(--ok);font-weight:700}
+table.lg td.v-ng{color:var(--fail);font-weight:700}
+table.lg td.none{color:var(--sub);white-space:normal;text-align:center;padding:14px 8px}
+.lg-btn{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.lg-btn .small{margin-top:0}
+#lgN{color:var(--sky-d)}
+/* ★v1.7.0 클라우드 저장 */
+#cloud [hidden],#cdDl[hidden]{display:none!important}
+/* ★v1.8.0 로그인 화면 */
+#gate{position:fixed;inset:0;z-index:9999;background:#f4f8fb;display:flex;align-items:center;justify-content:center}
+#gate[hidden]{display:none}
+.gt-box{background:#fff;border:1.5px solid #cfe0ee;border-radius:14px;padding:28px 26px;max-width:340px;width:86%;
+        box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center}
+.gt-h{font-size:18px;font-weight:700;color:#1a3b57;margin-bottom:4px}
+.gt-m{font-size:13px;color:#5b7189;margin-bottom:16px}
+#gtPw{text-align:center;font-size:15px}
+#gtBtn{width:100%;margin-top:10px;padding:11px;border:0;border-radius:10px;background:var(--sky);color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+#gtBtn:disabled{opacity:.6;cursor:default}
+.gt-e{font-size:12.5px;color:var(--fail);margin-top:10px;min-height:16px}
+.gt-skip{margin-top:6px;background:none;border:0;color:var(--sub);font-size:12px;text-decoration:underline;cursor:pointer}
+/* ★v1.9.0 클라우드 상태 줄(상단) + CSV 내려받기(큐라코 서버 아래) */
+.cd-bar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.cd-st{flex:1;min-width:0;font-size:13px;padding:8px 10px;border-radius:8px;background:#f6f9fc;color:var(--ink)}
+.cd-st.ok{background:#eaf7ef;color:var(--ok)}
+.cd-st.ng{background:#fdeeee;color:var(--fail)}
+.cd-link{flex:none;width:auto;white-space:nowrap;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;
+         font-size:12.5px;font-weight:600;color:var(--sub);cursor:pointer;font-family:inherit}   /* 전역 button{width:100%} 덮어씀 */
+.cd-link:hover{border-color:var(--sky);color:var(--sky-d)}
+.cd-dl{margin:-6px 0 16px}
 
 .steps{list-style:none;margin:0 0 10px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .steps li{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px}
@@ -133,23 +199,27 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
 .hm-note b{color:#a86a0c;margin-right:6px}
 </style></head>
 <body>
-<!-- ★비밀번호 게이트 (비번·ON/OFF는 config.js 에서 관리 — index.html 과 같음) -->
-<div id="gate" style="position:fixed;inset:0;z-index:9999;background:#f4f8fb;display:flex;align-items:center;justify-content:center">
-  <div style="background:#fff;border:1.5px solid #cfe0ee;border-radius:14px;padding:28px 26px;max-width:340px;width:86%;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center">
-    <div style="font-size:18px;font-weight:700;color:#1a3b57;margin-bottom:4px">CURA 연결 테스트</div>
-    <div id="gmsg" style="font-size:13px;color:#5b7189;margin-bottom:16px">비밀번호를 입력하세요</div>
-    <input id="gpw" type="password" autocomplete="off" placeholder="비밀번호"
-      style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #cfe0ee;border-radius:10px;font-size:15px;margin-bottom:10px">
-    <button id="gbtn" type="button"
-      style="width:100%;padding:11px;border:0;border-radius:10px;background:#2f8fd6;color:#fff;font-size:15px;font-weight:600;cursor:pointer">확인</button>
-    <div id="gerr" style="font-size:12.5px;color:#c0392b;margin-top:10px;min-height:16px"></div>
+<!-- ★v1.8.0 로그인 화면 — 비밀번호는 구글 Apps Script 가 확인(페이지엔 비밀번호 없음). 맞으면 이 기기 토큰을 기억해 다음부터 안 뜬다 -->
+<div id="gate" hidden>
+  <div class="gt-box">
+    <div class="gt-h">CURA LTE 연결 테스트</div>
+    <div class="gt-m" id="gtMsg">비밀번호를 입력하세요 (이 기기에서 처음 1번)</div>
+    <input id="gtPw" type="password" autocomplete="current-password" placeholder="비밀번호">
+    <button id="gtBtn" type="button">로그인</button>
+    <div class="gt-e" id="gtErr"></div>
+    <button id="gtSkip" type="button" class="gt-skip" hidden>클라우드 저장 없이 사용</button>
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.5.0</span>
+  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.12.0</span>
     <button class="help" id="btnHelp" type="button" aria-expanded="false" aria-controls="helpMask">사용방법</button>
     <a class="sw" href="wifi-test.html">WiFi</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
+
+  <!-- ★v1.6.0 기록용 입력(작업자) — v1.10.0 제품번호 삭제(모듈로는 알 수 없음). 입력값은 이 브라우저에 기억된다 -->
+  <div class="idrow">
+    <div class="f"><label for="worker">작업자</label><input id="worker" placeholder="이름(선택)" autocomplete="off"></div>
+  </div>
 
   <div class="big">
     <button class="conn" id="btnConn">COM 연결</button>
@@ -161,7 +231,39 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     <button id="btnStop" hidden style="width:100%;margin-top:8px;padding:12px;border:0;border-radius:12px;background:#c0392b;color:#fff;font-size:16px;font-weight:700;cursor:pointer">■ 중단</button>
   </div>
   <div class="status" id="status" hidden></div>
+  <!-- ★v1.9.0 클라우드 상태 한 줄(상단) — 로그인·저장 완료·미전송이 여기 바로 보인다 -->
+  <div class="cd-bar" id="cloud">
+    <div class="cd-st" id="cdSt">-</div>
+    <button class="cd-link" id="btnCdLogin" type="button">로그인</button>
+    <button class="cd-link" id="btnCdOff" type="button">로그아웃</button>
+  </div>
   <a class="srv" href="https://crcadm.toksol.com/list_machine.php" target="_blank" rel="noopener">큐라코 서버 ↗</a>
+  <!-- ★v1.9.0 클라우드 기록 CSV — 큐라코 서버 바로 아래. 날짜는 열 때 오늘로 -->
+  <div class="cd-dl" id="cdDl">
+    <div class="grid">
+      <div class="f"><label for="cdFrom">시작일</label><input id="cdFrom" type="date"></div>
+      <div class="f"><label for="cdTo">종료일</label><input id="cdTo" type="date"></div>
+    </div>
+    <div class="lg-btn" style="margin-top:10px">
+      <button class="small" id="btnCdCsv" title="시트 '기록' — 개통 확인을 누를 때마다 1행씩 쌓인 전체 기록">기록 CSV</button>
+      <button class="small" id="btnCdLast" title="시트 '제품넘버' — IMEI 1개당 마지막 개통 확인 1행">제품넘버 CSV</button>
+    </div>
+  </div>
+
+  <!-- ★v1.6.0 개통 기록 — [LTE 개통 확인] 누를 때마다 1행 누적(이 브라우저). 서버 전송 없음 -->
+  <details id="ledger">
+    <summary>개통 기록 <span id="lgN">0건</span></summary>
+    <div class="inner">
+      <div class="lg-wrap"><table class="lg" id="lgTbl"></table></div>
+      <div class="lg-btn">
+        <button class="small" id="btnCsv1">이력 CSV 내려받기</button>
+        <button class="small" id="btnCsv2">현황 CSV 내려받기</button>
+      </div>
+      <button class="small" id="btnClear">기록 비우기</button>
+      <div class="hint" id="lgWarn">⚠ 기록은 <b>이 PC·이 브라우저</b>에만 쌓입니다 — 작업이 끝나면 <b>CSV 로 내려받아</b> 보관하세요.<br>
+        이력 = 확인 1회가 1행 · 현황 = IMEI 당 1행(마지막 개통 확인일)</div>
+    </div>
+  </details>
 
   <!-- 처음에는 접힘 (open 속성 없음) -->
   <details>
@@ -282,6 +384,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   let lastImei = '';      // 직전에 확인된 모듈의 IMEI — 교체 판정
   let swapSeen = false;   // 이번 유휴 구간에서 교체 신호를 이미 처리했나
   let needReset = false;  // 다음 실행 앞에서 모듈을 초기화할지(교체됐을 때만)
+  let lastStatus = '';    // ★v1.6.0 마지막 결과 한 줄 — 기록의 '사유' 칸
 
   if(!('serial' in navigator)){ $('noSerial').classList.add('show'); }
 
@@ -296,6 +399,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   // ── 결과 한 줄 ──
   // 대기 안내(kind 없음)는 숨김 — 진행·결과·오류만 보인다 (v1.1.1)
   function status(kind, msg, sub){
+    lastStatus = String(msg).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();   // ★v1.6.0 기록용(태그 제거)
     $('status').hidden = !kind;
     $('status').className = 'status '+(kind||'');
     $('status').innerHTML = msg+(sub?'<small>'+sub+'</small>':'');
@@ -325,6 +429,256 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     li.className = state || ''; li.querySelector('span').textContent = txt;
   }
   function resetSteps(){ ['at','sim','csq','reg','pdp','open','send'].forEach(k => step(k, '', '-')); }
+
+  /* ───── ★v1.6.0 개통 기록 장부 (2026-10-29 사장 지시) ─────
+     [LTE 개통 확인] 1회 = 1행. localStorage 에 누적하고 CSV 로 내려받는다. 서버 전송 없음. */
+  const LG_KEY = 'cura_lte_log_v1', LG_VER = 'v1.12.0', LG_MAX = 5000;
+  let lgRows = [], rec = null;
+
+  function lgLoad(){
+    try{ const s = localStorage.getItem(LG_KEY); lgRows = s ? JSON.parse(s) : []; }catch(e){ lgRows = []; }
+    if(!Array.isArray(lgRows)) lgRows = [];
+  }
+  function lgSave(){
+    try{ localStorage.setItem(LG_KEY, JSON.stringify(lgRows)); }
+    catch(e){ $('lgWarn').innerHTML = '⚠ <b>기록을 저장하지 못했습니다</b> ('+e.message+') — 지금 바로 <b>CSV 로 내려받으세요</b>.'; }
+  }
+  function stamp(d){ const p = n => String(n).padStart(2,'0'); d = d || new Date();
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+  function fileStamp(){ const s = stamp().replace(/[-:]/g, ''); return s.slice(0,8)+'_'+s.slice(9,13); }
+
+  function recBegin(){
+    rec = { t: stamp(), worker: $('worker').value.trim(),
+            imei:'', iccid:'', model:'', carrier:'', ip:'', rssi:'', reg:'', ver: LG_VER };
+  }
+  function recEnd(verdict){
+    if(!rec) return;
+    if(aborted){ rec = null; return; }                 // [■ 중단] 으로 끊은 것은 기록하지 않는다
+    rec.verdict = verdict; rec.reason = lastStatus; rec.id = rowId(rec);
+    lgRows.push(rec); if(lgRows.length > LG_MAX) lgRows = lgRows.slice(-LG_MAX);
+    cdEnqueue([rec]);                                  // ★v1.7.0 클라우드로도 보낸다(등록된 기기만)
+    rec = null; lgSave(); lgRender();
+    try{ localStorage.setItem('cura_lte_worker', $('worker').value.trim()); }catch(e){}
+  }
+  // 같은 모듈(IMEI)의 직전 개통 확인 — '마지막 개통일'을 결과 줄에서 바로 본다
+  function prevOpen(imei){
+    if(!imei) return '';
+    const ok = lgRows.filter(r => r.imei === imei && r.verdict === '개통');
+    return ok.length ? '이 모듈 직전 개통 확인 <b>'+ok[ok.length-1].t+'</b> (지금까지 '+ok.length+'회)'
+                     : '이 모듈은 <b>처음</b> 개통 확인입니다';
+  }
+
+  function lgRender(){
+    $('lgN').textContent = lgRows.length+'건';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const last = lgRows.slice(-10).reverse();
+    $('lgTbl').innerHTML = !last.length
+      ? '<tr><td class="none">아직 기록이 없습니다 — [LTE 개통 확인] 을 누르면 1행씩 쌓입니다.</td></tr>'
+      : '<tr><th>일시</th><th>판정</th><th>IMEI</th></tr>'
+        + last.map(r => '<tr><td>'+esc(r.t)+'</td>'
+            + '<td class="'+(r.verdict === '개통' ? 'v-ok' : 'v-ng')+'">'+esc(r.verdict)+'</td>'
+            + '<td class="mono">'+esc(r.imei)+'</td></tr>').join('');
+  }
+
+  const csvEsc = v => { const s = String(v == null ? '' : v).replace(/"/g, '""');
+                        return /[",\r\n]/.test(s) ? '"'+s+'"' : s; };
+  function csvDown(name, rows){                       // UTF-8 BOM + CRLF (엑셀 한글)
+    const txt = '\uFEFF' + rows.map(a => a.map(csvEsc).join(',')).join('\r\n') + '\r\n';
+    const u = URL.createObjectURL(new Blob([txt], {type:'text/csv;charset=utf-8'}));
+    const a = document.createElement('a');
+    a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 1000);
+    log('in','── CSV 내려받기: '+name+' ──');
+  }
+
+  $('btnCsv1').onclick = () => {                      // 이력 — 확인 1회 = 1행
+    if(!lgRows.length){ status('ng','내려받을 기록이 없습니다'); return; }
+    const H = ['일시','판정','사유','IMEI','ICCID','모델','통신사','IP','신호(0~31)','망등록','작업자','페이지'];
+    csvDown('LTE개통이력_'+fileStamp()+'.csv', [H].concat(lgRows.map(r =>
+      [r.t, r.verdict, r.reason, r.imei, r.iccid, r.model, r.carrier, r.ip, r.rssi, r.reg, r.worker, r.ver])));
+  };
+  $('btnCsv2').onclick = () => {                      // 현황 — IMEI 당 1행(마지막 개통 확인일)
+    if(!lgRows.length){ status('ng','내려받을 기록이 없습니다'); return; }
+    const m = new Map();
+    lgRows.forEach(r => {
+      const k = r.imei || ('(IMEI없음) '+(r.iccid || '-'));
+      const o = m.get(k) || { imei:r.imei, iccid:'', model:'', carrier:'', worker:'',
+                              first:r.t, last:'', lastV:'', lastOpen:'', n:0, nOk:0 };
+      o.n++; o.last = r.t; o.lastV = r.verdict;
+      if(r.iccid) o.iccid = r.iccid;   if(r.model) o.model = r.model;
+      if(r.carrier) o.carrier = r.carrier;   if(r.worker) o.worker = r.worker;
+      if(r.verdict === '개통'){ o.nOk++; o.lastOpen = r.t; }
+      m.set(k, o);
+    });
+    const H = ['IMEI','ICCID','모델','마지막 개통확인','마지막 확인','마지막 판정',
+               '확인 횟수','개통 횟수','최초 확인','통신사','작업자'];
+    csvDown('LTE개통현황_'+fileStamp()+'.csv', [H].concat([...m.values()].map(o =>
+      [o.imei, o.iccid, o.model, o.lastOpen, o.last, o.lastV, o.n, o.nOk, o.first, o.carrier, o.worker])));
+  };
+  $('btnClear').onclick = () => {
+    if(!lgRows.length) return;
+    if(!confirm('기록 '+lgRows.length+'건을 모두 지웁니다.\n먼저 CSV 로 내려받았는지 확인하세요.')) return;
+    lgRows = []; lgSave(); lgRender(); log('in','── 기록을 비웠습니다 ──');
+  };
+
+  lgLoad(); lgRender();
+  try{ $('worker').value = localStorage.getItem('cura_lte_worker') || '';
+       localStorage.removeItem('cura_lte_prod'); }catch(e){}            // v1.10.0 제품번호 삭제 — 옛 저장값 정리
+
+  /* ───── ★v1.7.0 클라우드 저장 (구글 시트 · Apps Script) ─────
+     비밀번호는 서버가 확인한다. 이 브라우저엔 서버 주소·기기 토큰·미전송 목록만 남는다. */
+  const CD_KEY = 'cura_lte_cloud_v1', CD_Q = 'cura_lte_cloudq_v1';
+  const CD_URL0 = 'https://script.google.com/macros/s/AKfycbyi7gTwGrqXpfbgYxYpVzF5JQnEo13U8E4svd63RDuiybWL5PQLHJfg6yu3RMzth5JU/exec';   // v1.7.2 기본 서버
+  let cd = { url:'', token:'', device:'' }, cdQ = [], cdBusy = false;
+  function rowId(r){ return r.id || (r.t+'|'+(r.imei || '')+'|'+(r.prod || '')); }
+
+  function cdLoad(){
+    try{ cd = Object.assign(cd, JSON.parse(localStorage.getItem(CD_KEY) || '{}')); }catch(e){}
+    try{ cdQ = JSON.parse(localStorage.getItem(CD_Q) || '[]'); }catch(e){ cdQ = []; }
+    if(!Array.isArray(cdQ)) cdQ = [];
+  }
+  function cdStore(){
+    try{ localStorage.setItem(CD_KEY, JSON.stringify(cd)); localStorage.setItem(CD_Q, JSON.stringify(cdQ)); }catch(e){}
+  }
+  function cdShow(kind, msg){
+    const on = !!cd.token;
+    $('btnCdLogin').hidden = on; $('cdDl').hidden = !on; $('btnCdOff').hidden = !on;
+    // v1.9.0 미전송이 있으면 기본 문구도 빨강 — 버튼 없이 자동 재전송(열 때·새 기록·인터넷 복구 때)
+    $('cdSt').className = 'cd-st '+(kind || (on && cdQ.length ? 'ng' : ''));
+    $('cdSt').innerHTML = msg || (on ? '☁ 클라우드 저장 켜짐 (<b>'+cd.device+'</b>)'
+                                       + (cdQ.length ? ' · <b>미전송 '+cdQ.length+'건</b> — 인터넷 연결되면 자동 전송' : '')
+                                     : '☁ 클라우드 로그인 안 됨 — 기록은 이 브라우저에만 쌓입니다');
+  }
+  function cdUrlNow(){ return cdUrlOk(cd.url || '') ? cd.url : CD_URL0; }
+
+  /* ★v1.8.0 로그인 화면 — 비밀번호 1개(PW)를 Apps Script 가 확인 → 기기 토큰. 토큰이 있으면 안 뜬다.
+     github.io 에서는 반드시 로그인, 사내 8443 등은 포털 로그인이 따로 있어 [클라우드 저장 없이 사용] 허용 */
+  const GATE_MUST = /github\.io$/.test(location.hostname);
+  function gateShow(msg){
+    $('gtMsg').textContent = msg || '비밀번호를 입력하세요 (이 기기에서 처음 1번)';
+    $('gtErr').textContent = ''; $('gtSkip').hidden = GATE_MUST;
+    $('gate').hidden = false; setTimeout(() => $('gtPw').focus(), 50);
+  }
+  async function gateLogin(){
+    const pw = $('gtPw').value;
+    if(!pw){ $('gtErr').textContent = '비밀번호를 넣으세요'; return; }
+    $('gtBtn').disabled = true; $('gtErr').textContent = '확인 중…';
+    const url = cdUrlNow(), dev = autoDevName();
+    const r = await cdCall({ act:'login', device:dev, pw }, url);
+    $('gtBtn').disabled = false; $('gtPw').value = '';        // 비밀번호는 남기지 않는다
+    if(!r.ok){ $('gtErr').textContent = r.err || '로그인 실패'; return; }
+    const devName = String(r.device || dev).replace(/[<>&"']/g, '');   // 화면에 HTML 로 넣으므로 태그 문자 제거
+    cd = { url, token:r.token, device:devName }; cdStore();
+    try{ sessionStorage.setItem('cura_ok', '1'); }catch(e){}            // 옛 index.html 잠금과 호환
+    $('gate').hidden = true;
+    log('in','── 로그인됨 ('+devName+') ──');
+    cdShow('ok', '✔ 로그인됨: <b>'+devName+'</b> — 개통 확인 결과가 자동으로 저장됩니다');
+    if(lgRows.length) cdEnqueue(lgRows); else cdFlush();   // v1.9.0 [브라우저 기록 전부 올리기] 대신 로그인 때 자동(이미 있는 건 서버가 건너뜀)
+  }
+  function cdLogout(msg){
+    cd = { url:cd.url, token:'', device:'' }; cdStore(); cdShow();
+    gateShow(msg);
+  }
+  // v1.7.1 회사(Workspace) 계정 주소 …/a/macros/<도메인>/s/…/exec 도 받는다
+  function cdUrlOk(u){ return /^https:\/\/script\.google\.com\/(a\/macros\/[\w.-]+|macros)\/s\/[\w-]+\/exec$/.test(u); }
+
+  // text/plain 본문 = 브라우저가 사전 확인(preflight) 없이 보낸다 → Apps Script 와 CORS 문제 없음
+  async function cdCall(body, url){
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 30000);
+    try{
+      const r = await fetch(url || cd.url, { method:'POST', body:JSON.stringify(body), signal:ctl.signal });
+      const t = await r.text();
+      try{ return JSON.parse(t); }
+      catch(_){ return { ok:false, err:'서버가 JSON 이 아닌 응답을 줬습니다(HTTP '+r.status+') — 배포 액세스 권한이 「모든 사용자」인지, 코드 붙여넣고 저장·배포했는지 확인' }; }
+    }catch(e){
+      // 액세스가 「모든 사용자」가 아니면 구글 로그인 페이지로 넘어가 브라우저가 막는다(여기로 옴)
+      return { ok:false, err:e.name === 'AbortError' ? '응답 시간 초과 — 인터넷 확인'
+        : '접속 실패 — ①배포 액세스 권한 「모든 사용자」(회사 계정이면 「모든 사용자」가 없을 수 있음) ②웹 앱 URL(/exec) ③인터넷 확인' };
+    }finally{ clearTimeout(tm); }
+  }
+
+  function cdEnqueue(rows){
+    if(!cd.token) return;
+    const have = new Set(cdQ.map(r => r.id));
+    rows.forEach(r => { const o = Object.assign({}, r, { id:rowId(r) }); if(!have.has(o.id)){ cdQ.push(o); have.add(o.id); } });
+    cdStore(); cdFlush();
+  }
+  async function cdFlush(){
+    if(!cd.token || cdBusy || !cdQ.length){ cdShow(); return; }
+    cdBusy = true; cdShow('', '클라우드로 보내는 중… ('+cdQ.length+'건)');
+    let added = 0, skipped = 0, err = '';
+    while(cdQ.length){
+      const part = cdQ.slice(0, 200);
+      const r = await cdCall({ act:'save', token:cd.token, rows:part });
+      if(!r.ok){ err = r.err || '저장 실패'; break; }
+      added += r.added; skipped += r.skipped;
+      const done = new Set(part.map(x => x.id));
+      cdQ = cdQ.filter(x => !done.has(x.id)); cdStore();
+    }
+    cdBusy = false;
+    if(err){
+      log('er','클라우드 저장 실패: '+err);
+      if(/등록되지 않은|차단된/.test(err)){ cdLogout('이 기기의 로그인이 끊겼습니다 — 다시 로그인하세요'); }
+      cdShow('ng', '✖ 클라우드 저장 실패 — '+err+(cdQ.length ? '<br>미전송 '+cdQ.length+'건은 남겨 두었습니다' : ''));
+    }else{
+      log('in','── 클라우드 저장: 추가 '+added+'건'+(skipped ? ' · 이미 있음 '+skipped+'건' : '')+' ──');
+      cdShow('ok', '✔ 클라우드 저장 완료 — 추가 '+added+'건'+(skipped ? ' · 이미 있음 '+skipped+'건' : '')
+                 +' ('+cd.device+')');
+    }
+  }
+
+  $('gtBtn').onclick = gateLogin;
+  $('gtPw').addEventListener('keydown', e => { if(e.key === 'Enter') gateLogin(); });
+  $('gtSkip').onclick = () => { $('gate').hidden = true; cdShow(); };
+  $('btnCdLogin').onclick = () => gateShow();
+  window.addEventListener('online', () => cdFlush());    // v1.9.0 [미전송 다시 보내기] 대신 인터넷 복구 때 자동
+  $('btnCdOff').onclick = () => {
+    if(cdQ.length && !confirm('미전송 '+cdQ.length+'건이 있습니다. 로그아웃해도 다시 로그인하면 이어서 보냅니다.\n로그아웃할까요?')) return;
+    log('in','── 로그아웃 ──'); cdLogout('로그아웃했습니다 — 다시 쓰려면 비밀번호를 입력하세요');
+  };
+  // v1.11.0 클라우드 CSV 2종 — 이력(확인 1회 = 1행 계속 누적) / IMEI별 마지막(IMEI 1개당 마지막 확인 1행)
+  async function cdCsv(mode, btn, base){                // v1.8.0 비밀번호 대신 로그인 토큰
+    if(!cd.token){ gateShow(); return; }
+    btn.disabled = true; cdShow('', '클라우드 기록 받는 중…');
+    const r = await cdCall({ act:'csv', mode, token:cd.token, from:$('cdFrom').value, to:$('cdTo').value }, cdUrlNow());
+    btn.disabled = false;
+    if(!r.ok){
+      if(/등록되지 않은|차단된/.test(r.err || '')) cdLogout('이 기기의 로그인이 끊겼습니다 — 다시 로그인하세요');
+      cdShow('ng', '✖ 내려받기 실패 — '+(r.err || '')); return;
+    }
+    const name = base+'_'+fileStamp()+'.csv';
+    const u = URL.createObjectURL(new Blob(['﻿'+r.csv], {type:'text/csv;charset=utf-8'}));   // BOM = 엑셀 한글
+    const a = document.createElement('a');
+    a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 1000);
+    log('in','── 클라우드 CSV 내려받기: '+name+' ('+r.n+'건) ──');
+    cdShow('ok', '✔ 내려받기 완료 — '+r.n+'건 · '+name);
+  }
+  $('btnCdCsv').onclick  = () => cdCsv('all',  $('btnCdCsv'),  'LTE개통_기록');
+  $('btnCdLast').onclick = () => cdCsv('last', $('btnCdLast'), 'LTE개통_제품넘버');
+
+  /* v1.7.4 기기 이름 입력칸 삭제(사장 지시) — 등록 때 자동 이름(작업자·OS·브라우저·등록시각)을 서버에 보낸다.
+     시트 '기기' 탭에서 어느 기기인지 구분·차단하는 데만 쓴다 */
+  function autoDevName(){
+    const ua = navigator.userAgent;
+    const os = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS'
+             : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'PC';
+    const br = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : '브라우저';
+    const p = n => String(n).padStart(2,'0'), d = new Date();
+    return [$('worker').value.trim(), os, br, p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())]
+             .filter(Boolean).join(' ').slice(0, 40);
+  }
+
+  // 시작: 토큰 있으면 화면 바로 열고 뒤에서 확인(끊겼으면 로그인 화면) / 없으면 로그인 화면
+  { const p = n => String(n).padStart(2,'0'), d = new Date(),            // v1.9.0 날짜 기본 = 오늘
+      today = d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+    $('cdFrom').value = today; $('cdTo').value = today; }
+  cdLoad(); cdShow();
+  if(!cd.token) gateShow();
+  else cdCall({ act:'ping', token:cd.token }, cdUrlNow()).then(r => {
+    if(!r.ok && /등록되지 않은|차단된/.test(r.err || '')) cdLogout('이 기기의 로그인이 끊겼습니다 — 다시 로그인하세요');
+    else cdFlush();                                     // 인터넷이 안 되면 그대로 쓰고, 기록은 미전송으로 쌓인다
+  });
 
   // ── 시리얼 ──
   function setButtons(){
@@ -475,6 +829,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
 
     m = await at('AT+CSQ', 3000, [/\+CSQ:\s*(\d+),/, /ERROR/]);
     const rssi = m && m[1] ? +m[1] : 99;
+    if(rec) rec.rssi = (rssi === 99 ? '' : rssi);                 // ★v1.6.0 기록
     if(rssi === 99) step('csq','ng','측정 불가');
     else step('csq', rssi >= 10 ? 'ok' : 'ng', rssi+'/31');
 
@@ -483,6 +838,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     if(aborted) return false;
     const st = m && m[1];
     const regTxt = {'1':'홈','5':'로밍','2':'검색 중','0':'미등록','3':'거부'}[st] || '확인 불가';
+    if(rec) rec.reg = regTxt;                                     // ★v1.6.0 기록
     if(st === '1' || st === '5'){ step('reg','ok',regTxt); return true; }
     step('reg','ng',regTxt);
     const why =
@@ -515,8 +871,9 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   // ── LTE 개통 확인: 유심 READY + 망 등록 + 데이터 접속(IP 받음) = 개통. 서버로는 아무것도 보내지 않는다 ──
   $('btnOpen').onclick = () => run(async () => {
     resetSteps(); mark($('btnOpen'), null); log('in','── LTE 개통 확인 ──');
+    recBegin();                                                // ★v1.6.0 이 번 확인을 기록에 남긴다
     await prep();                                              // ★v1.5.0 교체가 감지됐을 때만 초기화
-    if(!(await check())){ if(!aborted) mark($('btnOpen'), false); return; }
+    if(!(await check())){ if(!aborted){ mark($('btnOpen'), false); recEnd('미개통'); } return; }
 
     // 식별 정보 — 개통 서류(모뎀·유심 일련번호) 대조용. 명령이 모듈마다 달라 순서대로 시도
     status('run','모뎀·유심 정보 읽는 중…');
@@ -533,6 +890,11 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     }
     r = await at('AT+COPS?', 5000, [/\+COPS:\s*\d+,\d+,"([^"]+)"/, /\+COPS:\s*\d+\s*\r/, /ERROR/]);
     const op = r && r[1] ? r[1] : '';
+
+    let model = '';                                            // ★v1.6.0 모델명(대조용) — 못 읽으면 빈칸으로 진행
+    r = await at('AT+CGMM', 3000, [/\r\n([^\r\n]+)\r\n\r\nOK/, /ERROR/]);
+    if(r && r[1] && !/^(AT|OK|ERROR)/i.test(r[1].trim())) model = r[1].trim();
+    if(rec){ rec.imei = imei; rec.iccid = iccid; rec.model = model; rec.carrier = op; }
 
     // 데이터 접속 — 접속돼 있지 않으면 한 번 붙여 본다 (QIOPEN 때와 같은 일, 서버 접속은 안 함)
     status('run','데이터 접속 확인 중…'); step('pdp','run','…');
@@ -551,10 +913,15 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
         '유심 인식과 망 등록은 <b>정상</b>인데 IP 를 못 받았습니다.'
         +'<br>→ <b>데이터 요금제가 들어간 유심인지</b> · APN 설정을 확인하세요.'
         +(info?'<br>'+info:'')+AGAIN);
+      recEnd('미개통');                                          // ★v1.6.0
       return;
     }
     step('pdp','ok','IP 받음'); mark($('btnOpen'), true);
-    status('ok','✔ 개통 확인됨', 'IP '+ip+(info?'<br>'+info:''));
+    if(rec) rec.ip = ip;                                       // ★v1.6.0
+    const prev = prevOpen(imei);                               // 같은 모듈의 직전 개통 확인일
+    status('ok','✔ 개통 확인됨',
+      'IP '+ip+(info?'<br>'+info:'')+(model?' · 모델 '+model:'')+(prev?'<br>'+prev:''));
+    recEnd('개통');                                             // ★v1.6.0
   });
 
   $('btnSend').onclick = () => run(async () => {
@@ -604,27 +971,6 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   b.addEventListener('click', function(){ set(!m.classList.contains('show')); });
   document.getElementById('helpX').addEventListener('click', function(){ set(false); b.focus(); });
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && m.classList.contains('show')){ set(false); b.focus(); } });
-})();
-</script>
-<script src="config.js"></script>
-<script>
-/* ★비밀번호 게이트 로직 (config.js 의 ENABLED·PASSWORD_SHA256 사용 — index.html 과 같은 세션 키라 한 번 풀면 같이 열림) */
-(function(){
-  var C = window.SITE_CONFIG || { ENABLED:true, PASSWORD_SHA256:"" };
-  var gate=document.getElementById('gate'), msg=document.getElementById('gmsg'),
-      pw=document.getElementById('gpw'), btn=document.getElementById('gbtn'), err=document.getElementById('gerr');
-  function unlock(){ try{ sessionStorage.setItem('cura_ok','1'); }catch(e){} gate.style.display='none'; }
-  if(C.ENABLED===false){ pw.style.display='none'; btn.style.display='none';
-    msg.innerHTML='현재 <b>잠금(중지)</b> 상태입니다.'; return; }
-  try{ if(sessionStorage.getItem('cura_ok')==='1'){ gate.style.display='none'; } }catch(e){}
-  async function sha256(s){ var b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-    return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join(''); }
-  async function check(){ err.textContent='';
-    var h=await sha256(pw.value||'');
-    if(h===String(C.PASSWORD_SHA256||'').toLowerCase()){ unlock(); }
-    else { err.textContent='비밀번호가 틀렸습니다.'; pw.value=''; pw.focus(); } }
-  if(btn){ btn.addEventListener('click', check); }
-  if(pw){ pw.addEventListener('keydown', function(e){ if(e.key==='Enter'){ check(); } }); pw.focus(); }
 })();
 </script>
 </body></html>
