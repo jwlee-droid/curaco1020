@@ -3,6 +3,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CURA1020 LTE 연결 테스트</title>
 <style>
+/* v1.14.0 — 모뎀과 통신이 안 되면 **기록도 업로드도 하지 않는다** (2026-10-30 사장 지시)
+   · 지시 = "모뎀이 응답하지 않았습니다 는 올리지 말자. 제품 검토에서 모뎀과 통신이 되면 업로드하고 통신이 안되면 업로드 하지 말자."
+   · 적용 = ① AT 무응답(모뎀까지 글자가 못 감)일 때만 그 번 확인을 **통째로 버린다**(브라우저 장부에도 안 남김
+     → 나중에 로그인해도 올라갈 일이 없다). 결선·전압·포트 문제라 제품 기록으로서 값이 없다.
+   · ②유심 못 읽음 ③망 등록 안 됨 ④데이터 접속 실패 는 **모뎀과는 통신된 것**이므로 그대로 기록한다(미개통).
+   · [■ 중단] 과 같은 취급 — 화면에는 "기록하지 않았습니다" 라고 알려 준다. */
 /* v1.13.0 — 유심 전화번호·IMSI 도 읽는다 (2026-10-30 사장 "전부 권고대로")
    · 실측 근거(2026-10-30 11:00, COM4 MeiG SLM332U): AT+CNUM 이 실제로 번호를 돌려줬다 → 가입리스트의 '서비스번호' 와 1:1 로 이어진다.
      AT+CIMI 는 IMSI(45005…=SKT). 둘 다 **실패해도 빈칸으로 그냥 진행**한다(없는 유심도 있다 — 추측값을 넣지 않는다).
@@ -216,7 +222,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.13.0</span>
+  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.14.0</span>
     <button class="help" id="btnHelp" type="button" aria-expanded="false" aria-controls="helpMask">사용방법</button>
     <a class="sw" href="wifi-test.html">WiFi</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
@@ -437,7 +443,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
 
   /* ───── ★v1.6.0 개통 기록 장부 (2026-10-29 사장 지시) ─────
      [LTE 개통 확인] 1회 = 1행. localStorage 에 누적하고 CSV 로 내려받는다. 서버 전송 없음. */
-  const LG_KEY = 'cura_lte_log_v1', LG_VER = 'v1.13.0', LG_MAX = 5000;
+  const LG_KEY = 'cura_lte_log_v1', LG_VER = 'v1.14.0', LG_MAX = 5000;
   let lgRows = [], rec = null;
 
   function lgLoad(){
@@ -813,9 +819,11 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     if(aborted) return false;
     if(!m || /ERROR/.test(m[0])){
       step('at','ng','응답 없음');
+      rec = null;                                   /* ★v1.14.0 모뎀과 통신 자체가 안 됨 → 이 번 확인은 기록·업로드 안 함 */
       status('ng','① 모뎀이 응답하지 않습니다',
         '보낸 글자가 모듈까지 못 갔습니다. <b>TX·RX 가 서로 바뀌지 않았는지</b>를 먼저 보세요.'
-        +'<br>그 다음 — 어댑터 전압(<b>3.3V</b>) · 통신 속도(<b>115200</b>) · COM 번호 · 모듈 전원.'+AGAIN);
+        +'<br>그 다음 — 어댑터 전압(<b>3.3V</b>) · 통신 속도(<b>115200</b>) · COM 번호 · 모듈 전원.'
+        +'<br><b>모뎀과 통신이 안 되어 이 번 확인은 기록하지 않았습니다</b>(결선·전원 문제라 제품 기록으로 남기지 않습니다).'+AGAIN);
       return false;
     }
     step('at','ok','정상');
