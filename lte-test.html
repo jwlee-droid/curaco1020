@@ -3,6 +3,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CURA1020 LTE 연결 테스트</title>
 <style>
+/* v1.16.1 — 기기 이름 화면 표시 **남은 2곳**도 삭제 (2026-11-03)
+   · v1.16.0 에서 상태줄·저장완료 문구만 지웠는데, 로그인 직후에만 보이는 2곳이 남아 있었다 →
+     ①「✔ 로그인됨: <기기이름> — …」 ②통신 기록 「── 로그인됨 (<기기이름>) ──」. 둘 다 이름 없이 바꿨다.
+   · 서버로 보내는 것은 그대로 — 로그인 때 1번 device(작업자·OS·브라우저·등록시각) 를 보낸다.
+     시트 '기기' 탭 구분·차단에 필요. MAC·호스트명·IP·계정명은 브라우저가 주지 않아 원래부터 수집 불가. */
+/* v1.16.0 — 안 쓰는 것 3가지 삭제 (2026-11-03 사장 지시)
+   · 지시 = "기록 csv, 제품넘버 csv 버튼 삭제 하자 시작일 종료일도 삭제 하자 필요 없어" +
+            "클라우드 저장 저 PC 넘버도 제거 하자 필요가 없어"
+   · ① 클라우드 CSV 2종 버튼과 시작일·종료일 칸을 통째로 지웠다 — 내려받기 함수와 날짜 기본값 코드도 같이.
+     시트 원본은 구글 시트에서 바로 받으면 되고, 이 화면의 「이력/현황 CSV」(브라우저 장부)는 그대로 남는다.
+   · ② 클라우드 상태줄의 기기 이름(작업자·OS·브라우저·등록시각) 화면 표시 삭제 — 「☁ 클라우드 저장 켜짐」만.
+     서버로는 계속 보낸다(시트 '기기' 탭에서 어느 PC 인지 구분·차단하는 데 필요). 화면에서만 숨긴 것. */
+/* v1.15.0 — [제품 이력 ↗] 바로가기 추가 (2026-11-02 사장 지시)
+   · 자리 = [큐라코 서버 ↗] 바로 아래. 누르면 새 탭으로 사내 포털 「제품 관리」의 LTE 모듈 칸이 열린다.
+   · 주소 = http://192.168.0.24:8090/docs/01_개발스펙/PRODUCT_ADMIN.html#lte (사내망 전용 · 포털 로그인 필요)
+   · 이 페이지는 공개(github.io)이므로 사외에서 누르면 열리지 않는다 — 버튼에 그 안내를 한 줄 적어 둔다. */
 /* v1.14.0 — 모뎀과 통신이 안 되면 **기록도 업로드도 하지 않는다** (2026-10-30 사장 지시)
    · 지시 = "모뎀이 응답하지 않았습니다 는 올리지 말자. 제품 검토에서 모뎀과 통신이 되면 업로드하고 통신이 안되면 업로드 하지 말자."
    · 적용 = ① AT 무응답(모뎀까지 글자가 못 감)일 때만 그 번 확인을 **통째로 버린다**(브라우저 장부에도 안 남김
@@ -98,6 +114,7 @@ button:disabled{opacity:.4;cursor:default;box-shadow:none}
 .srv{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:15px;color:var(--sky-d);
      border:1.5px solid var(--sky);border-radius:12px;padding:12px;margin-bottom:16px}
 .srv:hover{background:var(--sky-l)}
+.srv small{display:block;font-weight:400;font-size:12px;color:var(--sub);margin-top:4px}
 .status small{display:block;font-weight:400;font-size:12.5px;color:var(--ink);margin-top:3px}
 
 details{border-top:1px solid var(--line)}
@@ -132,7 +149,7 @@ table.lg td.none{color:var(--sub);white-space:normal;text-align:center;padding:1
 .lg-btn .small{margin-top:0}
 #lgN{color:var(--sky-d)}
 /* ★v1.7.0 클라우드 저장 */
-#cloud [hidden],#cdDl[hidden]{display:none!important}
+#cloud [hidden]{display:none!important}
 /* ★v1.8.0 로그인 화면 */
 #gate{position:fixed;inset:0;z-index:9999;background:#f4f8fb;display:flex;align-items:center;justify-content:center}
 #gate[hidden]{display:none}
@@ -153,7 +170,6 @@ table.lg td.none{color:var(--sub);white-space:normal;text-align:center;padding:1
 .cd-link{flex:none;width:auto;white-space:nowrap;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;
          font-size:12.5px;font-weight:600;color:var(--sub);cursor:pointer;font-family:inherit}   /* 전역 button{width:100%} 덮어씀 */
 .cd-link:hover{border-color:var(--sky);color:var(--sky-d)}
-.cd-dl{margin:-6px 0 16px}
 
 .steps{list-style:none;margin:0 0 10px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .steps li{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px}
@@ -222,7 +238,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   </div>
 </div>
 <main class="panel">
-  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.14.0</span>
+  <div class="top"><h1>LTE 연결 테스트</h1><span class="ver">v1.16.1</span>
     <button class="help" id="btnHelp" type="button" aria-expanded="false" aria-controls="helpMask">사용방법</button>
     <a class="sw" href="wifi-test.html">WiFi</a></div>
   <div class="warn" id="noSerial">크롬·엣지에서 여세요 (COM 포트 연결은 이 두 브라우저만 됩니다).</div>
@@ -249,18 +265,8 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     <button class="cd-link" id="btnCdOff" type="button">로그아웃</button>
   </div>
   <a class="srv" href="https://crcadm.toksol.com/list_machine.php" target="_blank" rel="noopener">큐라코 서버 ↗</a>
-  <!-- ★v1.9.0 클라우드 기록 CSV — 큐라코 서버 바로 아래. 날짜는 열 때 오늘로 -->
-  <div class="cd-dl" id="cdDl">
-    <div class="grid">
-      <div class="f"><label for="cdFrom">시작일</label><input id="cdFrom" type="date"></div>
-      <div class="f"><label for="cdTo">종료일</label><input id="cdTo" type="date"></div>
-    </div>
-    <div class="lg-btn" style="margin-top:10px">
-      <button class="small" id="btnCdCsv" title="시트 '기록' — 개통 확인을 누를 때마다 1행씩 쌓인 전체 기록">기록 CSV</button>
-      <button class="small" id="btnCdLast" title="시트 '제품넘버' — IMEI 1개당 마지막 개통 확인 1행">제품넘버 CSV</button>
-    </div>
-  </div>
-
+  <!-- ★v1.15.0 제품 이력 바로가기 — 사내 포털 「제품 관리」의 LTE 모듈 칸(#lte). 사내망에서만 열린다 -->
+  <a class="srv" href="http://192.168.0.24:8090/docs/01_%EA%B0%9C%EB%B0%9C%EC%8A%A4%ED%8E%99/PRODUCT_ADMIN.html#lte" target="_blank" rel="noopener">제품 이력 ↗<small>사내망에서만 열립니다 · 포털 로그인 필요</small></a>
   <!-- ★v1.6.0 개통 기록 — [LTE 개통 확인] 누를 때마다 1행 누적(이 브라우저). 서버 전송 없음 -->
   <details id="ledger">
     <summary>개통 기록 <span id="lgN">0건</span></summary>
@@ -443,7 +449,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
 
   /* ───── ★v1.6.0 개통 기록 장부 (2026-10-29 사장 지시) ─────
      [LTE 개통 확인] 1회 = 1행. localStorage 에 누적하고 CSV 로 내려받는다. 서버 전송 없음. */
-  const LG_KEY = 'cura_lte_log_v1', LG_VER = 'v1.14.0', LG_MAX = 5000;
+  const LG_KEY = 'cura_lte_log_v1', LG_VER = 'v1.16.1', LG_MAX = 5000;
   let lgRows = [], rec = null;
 
   function lgLoad(){
@@ -555,10 +561,10 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   }
   function cdShow(kind, msg){
     const on = !!cd.token;
-    $('btnCdLogin').hidden = on; $('cdDl').hidden = !on; $('btnCdOff').hidden = !on;
+    $('btnCdLogin').hidden = on; $('btnCdOff').hidden = !on;
     // v1.9.0 미전송이 있으면 기본 문구도 빨강 — 버튼 없이 자동 재전송(열 때·새 기록·인터넷 복구 때)
     $('cdSt').className = 'cd-st '+(kind || (on && cdQ.length ? 'ng' : ''));
-    $('cdSt').innerHTML = msg || (on ? '☁ 클라우드 저장 켜짐 (<b>'+cd.device+'</b>)'
+    $('cdSt').innerHTML = msg || (on ? '☁ 클라우드 저장 켜짐'
                                        + (cdQ.length ? ' · <b>미전송 '+cdQ.length+'건</b> — 인터넷 연결되면 자동 전송' : '')
                                      : '☁ 클라우드 로그인 안 됨 — 기록은 이 브라우저에만 쌓입니다');
   }
@@ -584,8 +590,8 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     cd = { url, token:r.token, device:devName }; cdStore();
     try{ sessionStorage.setItem('cura_ok', '1'); }catch(e){}            // 옛 index.html 잠금과 호환
     $('gate').hidden = true;
-    log('in','── 로그인됨 ('+devName+') ──');
-    cdShow('ok', '✔ 로그인됨: <b>'+devName+'</b> — 개통 확인 결과가 자동으로 저장됩니다');
+    log('in','── 로그인됨 ──');
+    cdShow('ok', '✔ 로그인됨 — 개통 확인 결과가 자동으로 저장됩니다');
     if(lgRows.length) cdEnqueue(lgRows); else cdFlush();   // v1.9.0 [브라우저 기록 전부 올리기] 대신 로그인 때 자동(이미 있는 건 서버가 건너뜀)
   }
   function cdLogout(msg){
@@ -635,8 +641,7 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
       cdShow('ng', '✖ 클라우드 저장 실패 — '+err+(cdQ.length ? '<br>미전송 '+cdQ.length+'건은 남겨 두었습니다' : ''));
     }else{
       log('in','── 클라우드 저장: 추가 '+added+'건'+(skipped ? ' · 이미 있음 '+skipped+'건' : '')+' ──');
-      cdShow('ok', '✔ 클라우드 저장 완료 — 추가 '+added+'건'+(skipped ? ' · 이미 있음 '+skipped+'건' : '')
-                 +' ('+cd.device+')');
+      cdShow('ok', '✔ 클라우드 저장 완료 — 추가 '+added+'건'+(skipped ? ' · 이미 있음 '+skipped+'건' : ''));
     }
   }
 
@@ -649,27 +654,6 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
     if(cdQ.length && !confirm('미전송 '+cdQ.length+'건이 있습니다. 로그아웃해도 다시 로그인하면 이어서 보냅니다.\n로그아웃할까요?')) return;
     log('in','── 로그아웃 ──'); cdLogout('로그아웃했습니다 — 다시 쓰려면 비밀번호를 입력하세요');
   };
-  // v1.11.0 클라우드 CSV 2종 — 이력(확인 1회 = 1행 계속 누적) / IMEI별 마지막(IMEI 1개당 마지막 확인 1행)
-  async function cdCsv(mode, btn, base){                // v1.8.0 비밀번호 대신 로그인 토큰
-    if(!cd.token){ gateShow(); return; }
-    btn.disabled = true; cdShow('', '클라우드 기록 받는 중…');
-    const r = await cdCall({ act:'csv', mode, token:cd.token, from:$('cdFrom').value, to:$('cdTo').value }, cdUrlNow());
-    btn.disabled = false;
-    if(!r.ok){
-      if(/등록되지 않은|차단된/.test(r.err || '')) cdLogout('이 기기의 로그인이 끊겼습니다 — 다시 로그인하세요');
-      cdShow('ng', '✖ 내려받기 실패 — '+(r.err || '')); return;
-    }
-    const name = base+'_'+fileStamp()+'.csv';
-    const u = URL.createObjectURL(new Blob(['﻿'+r.csv], {type:'text/csv;charset=utf-8'}));   // BOM = 엑셀 한글
-    const a = document.createElement('a');
-    a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(u), 1000);
-    log('in','── 클라우드 CSV 내려받기: '+name+' ('+r.n+'건) ──');
-    cdShow('ok', '✔ 내려받기 완료 — '+r.n+'건 · '+name);
-  }
-  $('btnCdCsv').onclick  = () => cdCsv('all',  $('btnCdCsv'),  'LTE개통_기록');
-  $('btnCdLast').onclick = () => cdCsv('last', $('btnCdLast'), 'LTE개통_제품넘버');
-
   /* v1.7.4 기기 이름 입력칸 삭제(사장 지시) — 등록 때 자동 이름(작업자·OS·브라우저·등록시각)을 서버에 보낸다.
      시트 '기기' 탭에서 어느 기기인지 구분·차단하는 데만 쓴다 */
   function autoDevName(){
@@ -683,9 +667,6 @@ body{flex-wrap:wrap;gap:20px;align-items:flex-start}
   }
 
   // 시작: 토큰 있으면 화면 바로 열고 뒤에서 확인(끊겼으면 로그인 화면) / 없으면 로그인 화면
-  { const p = n => String(n).padStart(2,'0'), d = new Date(),            // v1.9.0 날짜 기본 = 오늘
-      today = d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
-    $('cdFrom').value = today; $('cdTo').value = today; }
   cdLoad(); cdShow();
   if(!cd.token) gateShow();
   else cdCall({ act:'ping', token:cd.token }, cdUrlNow()).then(r => {
